@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29. **Deadline: today.**
 - **Goal:** a working Django app that demonstrates LiteChat's core: *metered, a la carte access to LLMs from various providers*. Users log in, choose a billing account and one of three provider models, chat through the course proxy, and pay per token from their credit.
 - **Not the goal:** a full clone. Section 14 lists what is deliberately excluded.
-- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phases 6–10 are complete (the live-proxy checks for 6–7 are pending, as with 4b.10). Phase 11 is next. Tick items as they are completed.
+- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phases 6–11 are complete (the live-proxy checks for 6–7 are pending, as with 4b.10). Phase 12 is next. Tick items as they are completed.
 
 ---
 
@@ -437,19 +437,38 @@ Manual run on `runserver` + the **local fake proxy** (placeholder keys; the real
 ## Phase 11: Basic error handling
 *Depends on: 6, 7. Mostly finishes work started there.*
 
-- [ ] 11.1 Map each `ProviderError` kind to a friendly message in the chat view:
+- [x] 11.1 Map each `ProviderError` kind to a friendly message in the chat view:
   - `auth`: "The AI service rejected our credentials. Please contact the administrator."
   - `rate_limited`: "The AI service is busy. Please try again in a moment."
   - `timeout`: "The AI service took too long to respond. Please try again."
   - `upstream` / `bad_response`: "The AI service is unavailable right now."
   - `bad_request`: "The request could not be processed."
-- [ ] 11.2 Server-side logging records the kind and HTTP status only. **No headers, keys or full bodies.**
-- [ ] 11.3 Validation messages for a blank message, an overlong message, a blank rename, and "no active billing account".
-- [ ] 11.4 404 for other users' sessions everywhere (already covered by the tests in 6, 9 and 10). Custom `404.html` is optional.
-- [ ] 11.5 Tests: for each `ProviderError` kind, the rendered page shows its message, the draft is kept, and nothing is charged.
-- [ ] 11.6 Commit: `fix: show clear errors for proxy failures and invalid input`.
+  - *Already done in 4b:* the messages live in `ProviderError.DEFAULT_MESSAGES` (word for word as above), and the chat view shows them through `SendError` (Phase 6). This is not duplicated in the view. **Phase 11 fix:** an unsupported provider showed "Unsupported provider: <name>". It now shows the generic `bad_request` message and logs the detail.
+- [x] 11.2 Server-side logging records the kind and HTTP status only. **No headers, keys or full bodies.**
+  - *Already done in 4b* for logs. **Phase 11 gap found and fixed:** with `DEBUG=True` (the local `.env`), Django's debug error page showed frame locals, including the key, if an unexpected exception escaped `complete()`. Fixes:
+    - `@sensitive_variables()` (all locals) on `complete`. Frames below it, in `requests`/`mock`, hold the headers under other names such as `kwargs`.
+    - `@sensitive_variables('key')` on the builders.
+    - `litechat/debug.py` `AlwaysSafeExceptionReporterFilter` (`DEFAULT_EXCEPTION_REPORTER_FILTER`). Django only applies masking when DEBUG is off.
+- [x] 11.3 Validation messages for a blank message, an overlong message, a blank rename, and "no active billing account".
+  - *Already done:* blank and overlong message (Phase 6), blank rename (Phase 9), no active account (Phases 5 and 7). No change.
+- [x] 11.4 404 for other users' sessions everywhere (already covered by the tests in 6, 9 and 10). Custom `404.html` is optional. *(Skipped: optional.)*
+- [x] 11.5 Tests: for each `ProviderError` kind, the rendered page shows its message, the draft is kept, and nothing is charged.
+  - `chat/tests/test_errors.py` (9 tests):
+    - every `ProviderError` kind at page level
+    - the real adapter with 400/401/403/429/500/502/503/504 on all three providers, plus timeout, connection error, malformed 200, and missing key (no request made). For each: the message is shown, the draft kept, nothing saved or charged, and no key or upstream detail appears in the page.
+    - logs hold the kind and status only
+    - the generic unsupported-provider message
+    - error pages hide keys with DEBUG on and off, including `request.META`
+    - a guard proving the masking depends on the decorator
+- [x] 11.6 Commit: `fix: show clear errors for proxy failures and invalid input` (`d1f858b`).
 
 **Verify:** temporarily set a wrong key in the environment. The chat shows the credentials message, no charge is made, and restoring the key fixes it.
+
+**Result (2026-09-29):** `chat.tests.test_errors` 9/9 pass. Full suite 154/154 pass. `makemigrations --check`: no changes. Secret scan: 81 working files and the full git history hold no keys, and `.env`/`db.sqlite3` are untracked.
+
+The verify step was done against the **local fake proxy** (the real keys must not be used), which rejects keys containing "wrong" with the real proxy's 401 body:
+- With `BUILD_OPENAI_KEY=wrong-placeholder-key`: the page showed "The AI service rejected our credentials…", the draft was kept, 0 messages, 0 charges, credit .00. The server log held `kind=auth status=401` only, with no key and no proxy detail.
+- Restarted with a good placeholder: the send worked (2 messages, 1 charge, credit .999908).
 
 ---
 
