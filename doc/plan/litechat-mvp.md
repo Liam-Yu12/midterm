@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29. **Deadline: today.**
 - **Goal:** a working Django app that demonstrates LiteChat's core: *metered, a la carte access to LLMs from various providers*. Users log in, choose a billing account and one of three provider models, chat through the course proxy, and pay per token from their credit.
 - **Not the goal:** a full clone. Section 14 lists what is deliberately excluded.
-- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phase 6 is complete (the live-proxy check is pending, as with 4b.10). Phase 7 is next. Tick items as they are completed.
+- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phases 6–7 are complete (their live-proxy checks are pending, as with 4b.10). Phase 8 is next. Tick items as they are completed.
 
 ---
 
@@ -324,18 +324,18 @@ Tests are written **inside each phase**, not saved for the end. Phase 12 runs th
 ## Phase 7: Token-based metering and credit deduction
 *Depends on: 3, 6. Tightly coupled to 6.2.*
 
-- [ ] 7.1 `billing/services.py` `calculate_cost(llm_model, input_tokens, output_tokens) -> Decimal`: `in × in_price / 1_000_000 + out × out_price / 1_000_000`, quantized to 6 dp.
-- [ ] 7.2 `billing/services.py` `ensure_can_spend(account)`:
+- [x] 7.1 `billing/services.py` `calculate_cost(llm_model, input_tokens, output_tokens) -> Decimal`: `in × in_price / 1_000_000 + out × out_price / 1_000_000`, quantized to 6 dp.
+- [x] 7.2 `billing/services.py` `ensure_can_spend(account)`:
   - Raises `AccountInactive` if the account isn't active.
   - Raises `InsufficientCredit` if `credit <= 0`.
-- [ ] 7.3 `billing/services.py` `record_charge(account, message, llm_model, in_tok, out_tok)`:
+- [x] 7.3 `billing/services.py` `record_charge(account, message, llm_model, in_tok, out_tok)`:
   - Inside `transaction.atomic()`, re-fetch the account with `select_for_update()`, subtract the cost, and create a `UsageCharge`.
   - Negative balances are allowed only as the result of the final message (D4).
-- [ ] 7.4 Wire into `send_message`:
+- [x] 7.4 Wire into `send_message`:
   1. Call `ensure_can_spend` **before** the proxy call.
   2. On success, in one `transaction.atomic()`, save the user message and the assistant message (with tokens and cost), then call `record_charge`.
   3. On `ProviderError`, save nothing and charge nothing.
-- [ ] 7.5 `billing/models.py` `UsageCharge` with these fields, plus a migration:
+- [x] 7.5 `billing/models.py` `UsageCharge` with these fields, plus a migration:
   - `billing_account` (FK, PROTECT)
   - `message` (1:1 → `chat.Message`, `on_delete=SET_NULL`, nullable)
   - `session_label` (text snapshot of the session ID and name)
@@ -345,22 +345,34 @@ Tests are written **inside each phase**, not saved for the end. Phase 12 runs th
   - `created_at`
 
   Register it in the admin as read-only.
-- [ ] 7.6 UI:
+- [x] 7.6 UI: (the optional per-message tokens and cost line was **skipped**; it is a stretch item)
   - Blocked sends show "Insufficient credit in [Personal] NAME. Ask an administrator to top up." or "This billing account is not active."
   - The profile page shows the updated balance.
   - A small "N tokens · $0.000123" line under each assistant bubble is optional and done only if trivial (it's a stretch item).
-- [ ] 7.7 Tests in `billing/tests/test_metering.py` and `chat/tests/test_chat.py`:
+- [x] 7.7 Tests in `billing/tests/test_metering.py` and `chat/tests/test_chat.py`:
   - `calculate_cost` is exact for known inputs, for each model's prices.
   - A successful send deducts exactly the calculated cost and creates one `UsageCharge` linked to the assistant message.
   - With credit = 0, the send is **blocked, the proxy is not called** (mock asserts not called), and nothing is saved.
   - A suspended account is blocked.
   - A `ProviderError` means no charge, no messages saved, and an unchanged balance.
   - Two sessions on the same account both deduct from the same balance.
-- [ ] 7.8 Commit: `feat: meter token usage and deduct credit per reply`.
+- [x] 7.8 Commit: `feat: meter token usage and deduct credit per reply`.
 
 **Verify:**
 - Note the balance, send a message, and check that the balance dropped by the recorded `UsageCharge.cost`, visible in the admin.
 - Set credit to 0 in the admin. Sending is then blocked with a clear message, and no proxy call is made.
+
+**Result (2026-09-29):** migration `billing/0002_usagecharge`. `billing.tests.test_metering` + `chat.tests.test_chat`: 39/39 pass. Full suite 121/121 pass (placeholder keys, provider mocked). `makemigrations --check`: no changes. Commit `fd1888d`.
+
+Manual run on `runserver` + the **local fake proxy** (placeholder keys; the real-proxy check is pending, as with 4b.10), with a temporary user and admin (deleted afterwards):
+- Haiku session, 2 sends: charges of 181+11 tok = $0.000236 and 183+4 tok = $0.000203. Balance 2.000000 → 1.999561 (exactly −0.000439). The profile shows `$2.00` (rounded to cents). The admin lists 2 usage charges, and its add page gives 403 (read-only).
+- Credit set to 0: the send gave "Insufficient credit in [Personal] … Ask an administrator to top up.", the draft was kept, and the fake proxy received **no** new request.
+
+*Notes:*
+- Truncated replies are charged (their tokens were consumed).
+- The cost is rounded half-up to 6 dp.
+- The deduction is `credit = F('credit') - cost` on a `select_for_update()`-locked row, inside the same `transaction.atomic()` as saving both messages and the `updated_at` bump. A failure anywhere rolls back everything (tested by forcing `UsageCharge.objects.create` to fail).
+- `ensure_can_spend` re-reads the account from the DB rather than trusting the in-memory object.
 
 ---
 
