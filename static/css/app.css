@@ -162,3 +162,10 @@ input[type="text"], input[type="password"], textarea, select {
 .flash { border-radius: 8px; padding: 8px 12px; margin: 0 0 16px; }
 .flash-error { color: #b42318; background: #fef3f2; border: 1px solid #fecdca; }
 .flash-success { color: #067647; background: #ecfdf3; border: 1px solid #abefc6; }
+.session-delete { opacity: 0; font-size: 0.85rem; margin-right: 4px; }
+.session-item:hover .session-delete, .session-item.active .session-delete, .session-delete:focus { opacity: 1; }
+.confirm-delete { max-width: 520px; }
+.confirm-delete h1 { margin-top: 0; font-size: 1.3rem; overflow-wrap: anywhere; }
+.confirm-actions { display: flex; gap: 10px; }
+.btn-danger { background: #d92d20; color: #fff; }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }

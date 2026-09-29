@@ -176,3 +176,68 @@ class RenameTests(SessionTestCase):
         response = self.client.get(f'/chat/{self.session.pk}/')
         self.assertContains(response, f'action="{self.url}"')
         self.assertContains(response, 'name="name"')
+
+
+class DeleteTests(SessionTestCase):
+    def setUp(self):
+        super().setUp()
+        self.session = self.make_session('Trip planning')
+        self.url = f'/chat/{self.session.pk}/delete/'
+
+    def send_paid_message(self):
+        reply = CompletionResult(text='Sure!', status='complete', input_tokens=1000, output_tokens=500)
+        with mock.patch('llm.providers.complete', return_value=reply):
+            self.client.post(f'/chat/{self.session.pk}/send/', {'content': 'Plan a trip'})
+
+    def test_get_shows_confirmation(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'chat/session_confirm_delete.html')
+        self.assertContains(response, "Delete 'Trip planning'?")
+        self.assertContains(response, 'This cannot be undone.')
+        self.assertTrue(ChatSession.objects.filter(pk=self.session.pk).exists())
+
+    def test_post_deletes_session_and_messages_and_redirects_home(self):
+        Message.objects.create(session=self.session, role='user', content='hello')
+        response = self.client.post(self.url, follow=True)
+        self.assertRedirects(response, '/chat/')
+        self.assertFalse(ChatSession.objects.filter(pk=self.session.pk).exists())
+        self.assertFalse(Message.objects.exists())
+        self.assertContains(response, 'Deleted &#x27;Trip planning&#x27;.')
+
+    def test_deleted_current_session_leaves_sidebar_and_is_gone(self):
+        keep = self.make_session('Keep me', age_days=1)
+        response = self.client.post(self.url, follow=True)
+        self.assertEqual(self.sidebar_names(response), ['Keep me'])
+        self.assertEqual(self.client.get(f'/chat/{self.session.pk}/').status_code, 404)
+        self.assertEqual(self.client.get(f'/chat/{keep.pk}/').status_code, 200)
+
+    def test_usage_charges_survive_and_balance_is_unchanged(self):
+        from billing.models import UsageCharge
+        self.send_paid_message()  # Luna: 1000 x 0.40/1M + 500 x 1.60/1M = 0.0012
+        charge = UsageCharge.objects.get()
+        balance_before = BillingAccount.objects.get(pk=self.account.pk).credit
+        self.assertEqual(balance_before, Decimal('2.00') - Decimal('0.0012'))
+
+        self.client.post(self.url)
+
+        charge.refresh_from_db()
+        self.assertIsNone(charge.message)
+        self.assertEqual(charge.session_label, f'#{self.session.pk} Trip planning')
+        self.assertEqual(charge.cost, Decimal('0.001200'))
+        self.assertEqual(BillingAccount.objects.get(pk=self.account.pk).credit, balance_before)
+
+    def test_other_user_gets_404_and_nothing_is_deleted(self):
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+        self.assertEqual(self.client.post(self.url).status_code, 404)
+        self.assertTrue(ChatSession.objects.filter(pk=self.session.pk).exists())
+
+    def test_anonymous_is_redirected_to_login(self):
+        self.client.logout()
+        self.assertRedirects(self.client.post(self.url), f'/login/?next={self.url}', fetch_redirect_response=False)
+        self.assertTrue(ChatSession.objects.filter(pk=self.session.pk).exists())
+
+    def test_delete_links_in_header_and_sidebar(self):
+        response = self.client.get(f'/chat/{self.session.pk}/')
+        self.assertContains(response, f'href="{self.url}"', count=2)

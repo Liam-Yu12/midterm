@@ -23,6 +23,8 @@
               <span class="session-name">{{ item.name }}</span>
               <span class="session-date">{{ item.updated_at|date:"M j, Y" }}</span>
             </a>
+            <a href="{% url 'chat:delete_session' item.pk %}" class="icon-btn session-delete"
+               title="Delete session" aria-label="Delete {{ item.name }}">🗑</a>
           </li>
         {% empty %}
           <li class="muted">No sessions yet.</li>

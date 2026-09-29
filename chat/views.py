@@ -77,3 +77,16 @@ def rename_session(request, pk):
         session.name = name
         session.save(update_fields=['name'])  # keeps updated_at: renaming isn't "using" the session
     return redirect('chat:session_detail', pk=session.pk)
+
+
+@login_required
+def delete_session(request, pk):
+    session = _get_own_session(request, pk)
+    if request.method == 'POST':
+        name = session.name
+        # Messages are deleted with the session; UsageCharge rows are kept
+        # (their message link is set to NULL and they keep a session label).
+        session.delete()
+        messages.success(request, f"Deleted '{name}'.")
+        return redirect('chat:home')
+    return render(request, 'chat/session_confirm_delete.html', {'session': session})

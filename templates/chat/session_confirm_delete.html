@@ -1,0 +1,15 @@
+{% extends "app_layout.html" %}
+
+{% block title %}Delete session · LiteChat{% endblock %}
+
+{% block content %}
+<section class="card confirm-delete">
+  <h1>Delete '{{ session.name }}'?</h1>
+  <p>This cannot be undone. Its messages will be deleted; your billing history is kept.</p>
+  <form method="post" class="confirm-actions">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a href="{% url 'chat:session_detail' session.pk %}" class="btn btn-secondary">Cancel</a>
+  </form>
+</section>
+{% endblock %}
