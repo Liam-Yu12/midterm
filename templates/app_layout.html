@@ -15,9 +15,19 @@
 
     <nav class="sidebar-section">
       <h2 class="sidebar-heading">Sessions</h2>
-      {% block session_list %}
-        <p class="muted">No sessions yet.</p>
-      {% endblock %}
+      <ul class="session-list">
+        {% for item in sidebar_sessions %}
+          <li class="session-item{% if session and item.pk == session.pk %} active{% endif %}">
+            <a href="{% url 'chat:session_detail' item.pk %}" class="session-link"
+               {% if session and item.pk == session.pk %}aria-current="page"{% endif %}>
+              <span class="session-name">{{ item.name }}</span>
+              <span class="session-date">{{ item.updated_at|date:"M j, Y" }}</span>
+            </a>
+          </li>
+        {% empty %}
+          <li class="muted">No sessions yet.</li>
+        {% endfor %}
+      </ul>
     </nav>
 
     <nav class="sidebar-section sidebar-footer">

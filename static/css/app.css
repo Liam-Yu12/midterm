@@ -141,3 +141,12 @@ input[type="text"], input[type="password"], textarea, select {
 .message-input-row { display: flex; gap: 10px; align-items: flex-end; }
 .message-input-row textarea { resize: vertical; min-height: 48px; }
 .message-input-row button:disabled { opacity: 0.7; cursor: wait; }
+
+/* --- Sidebar session list --- */
+.session-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.session-item { display: flex; align-items: center; border-radius: 8px; border-left: 3px solid transparent; }
+.session-item:hover { background: var(--bg); }
+.session-item.active { background: #e8f5fc; border-left-color: var(--primary); }
+.session-link { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 8px 10px; text-decoration: none; color: var(--text); }
+.session-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session-date { font-size: 0.8rem; color: var(--muted); }
