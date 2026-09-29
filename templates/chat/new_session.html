@@ -1,0 +1,53 @@
+{% extends "app_layout.html" %}
+
+{% block title %}Select a Model · LiteChat{% endblock %}
+
+{% block content %}
+<section class="card picker">
+  <h1>Select a Model</h1>
+
+  {% if not has_accounts %}
+    <p class="form-error" role="alert">
+      You don't have an active billing account, so you can't start a conversation yet.
+      Ask an administrator to add you to an account or reactivate yours.
+    </p>
+  {% else %}
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<p class="form-error" role="alert">{{ form.non_field_errors|join:" " }}</p>{% endif %}
+
+    <div class="picker-account">
+      <label for="{{ form.billing_account.id_for_label }}" class="price-label">Billing account</label>
+      {{ form.billing_account }}
+      <p class="muted">{{ form.billing_account.help_text }}</p>
+      {% if form.billing_account.errors %}<p class="form-error" role="alert">{{ form.billing_account.errors|join:" " }}</p>{% endif %}
+    </div>
+
+    {% if form.llm_model.errors %}<p class="form-error" role="alert">{{ form.llm_model.errors|join:" " }}</p>{% endif %}
+
+    {% regroup models by get_provider_display as provider_groups %}
+    {% for group in provider_groups %}
+      <fieldset class="provider-group">
+        <legend class="provider-name">{{ group.grouper }}</legend>
+        {% for model in group.list %}
+          <label class="model-card">
+            <input type="radio" name="{{ form.llm_model.html_name }}" value="{{ model.pk }}"
+                   {% if form.llm_model.value|stringformat:"s" == model.pk|stringformat:"s" %}checked{% endif %} required>
+            <span class="model-card-body">
+              <span class="model-name">{{ model.display_name }}</span>
+              <span class="muted">{{ model.description }}</span>
+              <span class="model-meta">
+                <span class="badge badge-tier">{{ model.get_tier_display }} tier</span>
+                <span class="muted">${{ model.input_price_per_mtok|floatformat:2 }} in · ${{ model.output_price_per_mtok|floatformat:2 }} out per 1M tokens</span>
+              </span>
+            </span>
+          </label>
+        {% endfor %}
+      </fieldset>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-primary">Start conversation</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

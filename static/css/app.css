@@ -1,0 +1,171 @@
+/* LiteChat MVP: minimal, clean styles. Not a pixel-match of litechat.ai. */
+
+:root {
+  --bg: #f3f5f7;
+  --surface: #ffffff;
+  --text: #1f2a30;
+  --muted: #5f7179;
+  --primary: #0a7bb0;
+  --border: #dfe6ea;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+a { color: var(--primary); }
+
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.muted { color: var(--muted); font-size: 0.9rem; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.btn {
+  display: inline-block;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-link { background: none; color: var(--primary); padding: 4px 0; }
+
+input[type="text"], input[type="password"], textarea, select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  background: #fbfcfd;
+}
+
+.form-error {
+  color: #b42318;
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+/* --- Login --- */
+.login-page { max-width: 420px; margin: 10vh auto; padding: 0 16px; }
+.login-title { text-align: center; font-size: 2.25rem; margin-bottom: 16px; }
+.login-card { display: flex; flex-direction: column; gap: 8px; }
+.login-card label { font-size: 0.8rem; text-transform: uppercase; color: var(--muted); margin-top: 8px; }
+.login-card button { margin-top: 16px; }
+
+/* --- App layout: sidebar + main --- */
+.app { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.sidebar-header { display: flex; justify-content: space-between; align-items: center; }
+.brand { font-weight: 700; font-size: 1.2rem; color: var(--text); text-decoration: none; }
+.sidebar-new { text-align: center; }
+.sidebar-heading { font-size: 0.75rem; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.sidebar-footer { margin-top: auto; }
+.main { flex: 1; padding: 24px; min-width: 0; }
+.empty-state { text-align: center; margin-top: 20vh; color: var(--muted); }
+
+/* --- Profile & billing --- */
+.profile-section { margin-bottom: 24px; }
+.profile-fields { display: grid; grid-template-columns: 180px 1fr; gap: 8px 16px; margin: 0; }
+.profile-fields dt { font-size: 0.8rem; text-transform: uppercase; color: var(--muted); }
+.profile-fields dd { margin: 0; font-weight: 600; }
+.account-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.account-name { font-weight: 600; margin-bottom: 6px; }
+.account-credit { text-align: right; }
+.price-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.credit-amount { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+.badge { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 2px 10px; border-radius: 99px; }
+.badge-active { background: #dcfae6; color: #067647; }
+.badge-suspended { background: #f2f4f7; color: #475467; }
+
+/* --- New conversation (model picker) --- */
+.picker h1 { margin-top: 0; }
+.picker-account { margin-bottom: 20px; }
+.picker-account .price-label { display: block; margin-bottom: 6px; }
+.provider-group { border: 0; padding: 0; margin: 0 0 16px; }
+.provider-name { font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; }
+.model-card { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; cursor: pointer; background: #f8fafb; }
+.model-card:has(input:checked) { border-color: var(--primary); background: #eef6fb; }
+.model-card input { margin-top: 4px; }
+.model-card-body { display: flex; flex-direction: column; gap: 4px; }
+.model-name { font-weight: 600; }
+.model-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.badge-tier { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+/* --- Empty state + session page --- */
+.new-conversation-plus { display: inline-flex; align-items: center; justify-content: center; width: 110px; height: 110px; border: 2px dashed #96d2ed; border-radius: 14px; font-size: 3.5rem; color: #5ab4dc; text-decoration: none; margin-bottom: 16px; }
+.session-header { border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; }
+.session-header h1 { margin: 0 0 8px; font-size: 1.4rem; }
+.session-meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.pill { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; color: var(--muted); }
+.chat-messages { display: flex; flex-direction: column; gap: 12px; }
+.bubble { max-width: 75%; padding: 10px 14px; border-radius: 12px; }
+.bubble-user { align-self: flex-end; background: #c6e8f8; }
+.bubble-assistant { align-self: flex-start; background: #e3e5e7; }
+
+/* --- Chat messages + input --- */
+.bubble { white-space: normal; overflow-wrap: anywhere; }
+.bubble-note { margin: 6px 0 0; font-size: 0.8rem; font-style: italic; color: var(--muted); }
+.thinking { color: var(--muted); font-style: italic; }
+.message-form { margin-top: 20px; }
+.message-input-row { display: flex; gap: 10px; align-items: flex-end; }
+.message-input-row textarea { resize: vertical; min-height: 48px; }
+.message-input-row button:disabled { opacity: 0.7; cursor: wait; }
+
+/* --- Sidebar session list --- */
+.session-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.session-item { display: flex; align-items: center; border-radius: 8px; border-left: 3px solid transparent; }
+.session-item:hover { background: var(--bg); }
+.session-item.active { background: #e8f5fc; border-left-color: var(--primary); }
+.session-link { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 8px 10px; text-decoration: none; color: var(--text); }
+.session-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session-date { font-size: 0.8rem; color: var(--muted); }
+
+/* --- Rename / delete controls + flash messages --- */
+.session-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.session-title-row h1 { margin: 0; }
+.icon-btn { cursor: pointer; list-style: none; color: var(--primary); border-radius: 6px; padding: 2px 6px; text-decoration: none; }
+.icon-btn::-webkit-details-marker { display: none; }
+.icon-btn:hover { background: var(--bg); }
+.rename[open] .icon-btn { background: var(--bg); }
+.rename-form { display: flex; gap: 8px; margin-top: 8px; max-width: 480px; }
+.flash { border-radius: 8px; padding: 8px 12px; margin: 0 0 16px; }
+.flash-error { color: #b42318; background: #fef3f2; border: 1px solid #fecdca; }
+.flash-success { color: #067647; background: #ecfdf3; border: 1px solid #abefc6; }
+.session-delete { opacity: 0; font-size: 0.85rem; margin-right: 4px; }
+.session-item:hover .session-delete, .session-item.active .session-delete, .session-delete:focus { opacity: 1; }
+.confirm-delete { max-width: 520px; }
+.confirm-delete h1 { margin-top: 0; font-size: 1.3rem; overflow-wrap: anywhere; }
+.confirm-actions { display: flex; gap: 10px; }
+.btn-danger { background: #d92d20; color: #fff; }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }

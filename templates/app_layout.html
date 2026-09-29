@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="{% url 'chat:home' %}" class="brand">LiteChat</a>
+      <form method="post" action="{% url 'logout' %}" class="logout-form">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-link">Log out</button>
+      </form>
+    </div>
+
+    <a href="{% url 'chat:new_session' %}" class="btn btn-primary sidebar-new">+ New conversation</a>
+
+    <nav class="sidebar-section">
+      <h2 class="sidebar-heading">Sessions</h2>
+      <ul class="session-list">
+        {% for item in sidebar_sessions %}
+          <li class="session-item{% if session and item.pk == session.pk %} active{% endif %}">
+            <a href="{% url 'chat:session_detail' item.pk %}" class="session-link"
+               {% if session and item.pk == session.pk %}aria-current="page"{% endif %}>
+              <span class="session-name">{{ item.name }}</span>
+              <span class="session-date">{{ item.updated_at|date:"M j, Y" }}</span>
+            </a>
+            <a href="{% url 'chat:delete_session' item.pk %}" class="icon-btn session-delete"
+               title="Delete session" aria-label="Delete {{ item.name }}">🗑</a>
+          </li>
+        {% empty %}
+          <li class="muted">No sessions yet.</li>
+        {% endfor %}
+      </ul>
+    </nav>
+
+    <nav class="sidebar-section sidebar-footer">
+      <h2 class="sidebar-heading">Account</h2>
+      <a href="{% url 'billing:profile' %}">My Profile</a>
+      <p class="muted">Signed in as {{ user.get_username }}</p>
+    </nav>
+  </aside>
+
+  <main class="main">
+    {% for message in messages %}
+      <p class="flash flash-{{ message.tags }}" role="{% if message.level_tag == 'error' %}alert{% else %}status{% endif %}">{{ message }}</p>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}

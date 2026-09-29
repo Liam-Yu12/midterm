@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Log in · LiteChat{% endblock %}
+
+{% block body %}
+<main class="login-page">
+  <h1 class="login-title">Welcome!</h1>
+  <form method="post" action="{% url 'login' %}" class="card login-card">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <p class="form-error" role="alert">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      </p>
+    {% endif %}
+    <label for="{{ form.username.id_for_label }}">Username</label>
+    {{ form.username }}
+    <label for="{{ form.password.id_for_label }}">Password</label>
+    {{ form.password }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit" class="btn btn-primary">LOG-IN</button>
+  </form>
+</main>
+{% endblock %}

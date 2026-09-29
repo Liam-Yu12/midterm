@@ -1,0 +1,10 @@
+{% extends "app_layout.html" %}
+
+{% block title %}Chat · LiteChat{% endblock %}
+
+{% block content %}
+<section class="empty-state">
+  <a href="{% url 'chat:new_session' %}" class="new-conversation-plus" aria-label="Start a new conversation">+</a>
+  <h1>Start a New Conversation</h1>
+</section>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "app_layout.html" %}
+{% load money %}
+
+{% block title %}My Profile · LiteChat{% endblock %}
+
+{% block content %}
+<section class="card profile-section">
+  <h1>User Profile</h1>
+  <dl class="profile-fields">
+    <dt>Display name</dt>
+    <dd>{{ user.get_full_name|default:user.get_username }}</dd>
+    <dt>Username</dt>
+    <dd>{{ user.get_username }}</dd>
+    <dt>Member since</dt>
+    <dd>{{ user.date_joined|date:"F j, Y" }}</dd>
+  </dl>
+</section>
+
+<section class="profile-section">
+  <h2>Billing Accounts</h2>
+  {% for account in accounts %}
+    <div class="card account-row">
+      <div>
+        <div class="account-name">{{ account }}</div>
+        <span class="badge badge-{{ account.status }}">{{ account.get_status_display }}</span>
+      </div>
+      <div class="account-credit">
+        <div class="price-label">Available credit</div>
+        <div class="credit-amount">{{ account.credit|usd }}</div>
+      </div>
+    </div>
+  {% empty %}
+    <p class="muted">You don't belong to any billing account yet. Ask an administrator to add you to one.</p>
+  {% endfor %}
+</section>
+{% endblock %}
