@@ -38,6 +38,9 @@
   </aside>
 
   <main class="main">
+    {% for message in messages %}
+      <p class="flash flash-{{ message.tags }}" role="{% if message.level_tag == 'error' %}alert{% else %}status{% endif %}">{{ message }}</p>
+    {% endfor %}
     {% block content %}{% endblock %}
   </main>
 </div>

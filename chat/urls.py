@@ -9,4 +9,5 @@ urlpatterns = [
     path('new/', views.new_session, name='new_session'),
     path('<int:pk>/', views.session_detail, name='session_detail'),
     path('<int:pk>/send/', views.send_message, name='send_message'),
+    path('<int:pk>/rename/', views.rename_session, name='rename_session'),
 ]

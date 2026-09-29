@@ -125,3 +125,54 @@ class HistoryTests(SessionTestCase):
         self.assertEqual(sorted(self.sidebar_names(self.client.get('/chat/'))), ['Gemini chat', 'Luna chat'])
         self.assertContains(self.client.get(f'/chat/{luna_chat.pk}/'), 'kept message')
         self.assertContains(self.client.get(f'/chat/{gemini_chat.pk}/'), 'Model: Gemini 3.8 Flash')
+
+
+class RenameTests(SessionTestCase):
+    def setUp(self):
+        super().setUp()
+        self.session = self.make_session('Untitled session', age_days=1)
+        self.url = f'/chat/{self.session.pk}/rename/'
+
+    def test_owner_can_rename_and_name_shows_in_header_and_sidebar(self):
+        response = self.client.post(self.url, {'name': '  Trip planning  '}, follow=True)
+        self.assertRedirects(response, f'/chat/{self.session.pk}/')
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.name, 'Trip planning')
+        self.assertContains(response, '<h1>Trip planning</h1>', html=True)
+        self.assertEqual(self.sidebar_names(response), ['Trip planning'])
+
+    def test_name_is_capped_at_100_characters(self):
+        self.client.post(self.url, {'name': 'x' * 150})
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.name, 'x' * 100)
+
+    def test_blank_name_is_rejected_and_old_name_kept(self):
+        response = self.client.post(self.url, {'name': '   '}, follow=True)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.name, 'Untitled session')
+        self.assertContains(response, "Session name can&#x27;t be blank.")
+
+    def test_rename_does_not_reorder_sessions(self):
+        before = self.session.updated_at
+        self.client.post(self.url, {'name': 'Renamed'})
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.updated_at, before)
+
+    def test_other_user_gets_404_and_name_is_unchanged(self):
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.post(self.url, {'name': 'Hacked'}).status_code, 404)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.name, 'Untitled session')
+
+    def test_get_is_not_allowed(self):
+        self.assertEqual(self.client.get(self.url).status_code, 405)
+
+    def test_anonymous_is_redirected_to_login(self):
+        self.client.logout()
+        self.assertRedirects(self.client.post(self.url, {'name': 'x'}),
+                             f'/login/?next={self.url}', fetch_redirect_response=False)
+
+    def test_session_page_has_rename_form(self):
+        response = self.client.get(f'/chat/{self.session.pk}/')
+        self.assertContains(response, f'action="{self.url}"')
+        self.assertContains(response, 'name="name"')

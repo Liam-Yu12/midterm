@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -5,6 +6,8 @@ from django.views.decorators.http import require_POST
 from . import services
 from .forms import NewSessionForm
 from .models import ChatSession
+
+MAX_SESSION_NAME_LENGTH = ChatSession._meta.get_field('name').max_length
 
 
 def _get_own_session(request, pk):
@@ -60,4 +63,17 @@ def send_message(request, pk):
         services.send_message(session, text)
     except services.SendError as exc:
         return _render_session(request, session, error=exc.user_message, draft=text)
+    return redirect('chat:session_detail', pk=session.pk)
+
+
+@login_required
+@require_POST
+def rename_session(request, pk):
+    session = _get_own_session(request, pk)
+    name = request.POST.get('name', '').strip()[:MAX_SESSION_NAME_LENGTH]
+    if not name:
+        messages.error(request, "Session name can't be blank.")
+    else:
+        session.name = name
+        session.save(update_fields=['name'])  # keeps updated_at: renaming isn't "using" the session
     return redirect('chat:session_detail', pk=session.pk)

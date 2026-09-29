@@ -6,7 +6,17 @@
 {% block content %}
 <section class="session">
   <header class="session-header">
-    <h1>{{ session.name }}</h1>
+    <div class="session-title-row">
+      <h1>{{ session.name }}</h1>
+      <details class="rename">
+        <summary class="icon-btn" title="Rename session" aria-label="Rename session">✎</summary>
+        <form method="post" action="{% url 'chat:rename_session' session.pk %}" class="rename-form">
+          {% csrf_token %}
+          <input type="text" name="name" value="{{ session.name }}" maxlength="100" required aria-label="Session name">
+          <button type="submit" class="btn btn-primary">Save</button>
+        </form>
+      </details>
+    </div>
     <div class="session-meta">
       <span class="pill">Model: {{ session.llm_model.display_name }}</span>
       <span class="muted">Billing account: {{ session.billing_account }}</span>
