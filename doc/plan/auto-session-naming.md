@@ -22,12 +22,12 @@
 
 ## Checklist
 
-- [ ] 1. `chat/naming.py` `suggest_session_name(text)`, plus unit tests (the spec's examples, whitespace, long input, fallbacks).
-- [ ] 2. `ChatSession.name_set_by_user` + migration `chat/0002`.
-- [ ] 3. `send_message`: auto-name inside the success transaction (N2).
-- [ ] 4. `rename_session`: set `name_set_by_user=True` on a successful rename. Blank rejection and the 100-char cap are unchanged.
-- [ ] 5. Header: the `.session-actions` group and the dropdown rename form (CSS).
-- [ ] 6. Tests:
+- [x] 1. `chat/naming.py` `suggest_session_name(text)`, plus unit tests (the spec's examples, whitespace, long input, fallbacks).
+- [x] 2. `ChatSession.name_set_by_user` + migration `chat/0002`.
+- [x] 3. `send_message`: auto-name inside the success transaction (N2).
+- [x] 4. `rename_session`: set `name_set_by_user=True` on a successful rename. Blank rejection and the 100-char cap are unchanged.
+- [x] 5. Header: the `.session-actions` group and the dropdown rename form (CSS).
+- [x] 6. Tests:
   - New sessions are "Untitled session".
   - The first successful message names the session.
   - Later messages don't rename.
@@ -36,6 +36,17 @@
   - A long first message gives a short, valid name.
   - Rename still works, and a blank rename is still rejected.
   - ✎ and 🗑 are adjacent.
-- [ ] 7. Full suite, plus a browser check of the header (closed and open) and of naming.
-- [ ] 8. Commit: `feat: add automatic chat naming and rename control`.
+- [x] 7. Full suite, plus a browser check of the header (closed and open) and of naming.
+- [x] 8. Commit: `feat: add automatic chat naming and rename control`.
+
+**Results (2026-09-29):**
+- `chat.tests.test_naming`: 23/23 pass. Full suite 196/196 pass (network blocked). `check` and `makemigrations --check` clean. New migration `chat/0002_session_name_set_by_user`.
+- Browser check (throwaway DB, local fake proxy, placeholder keys): 9/9 pass.
+  - A new session is "Untitled session". The first message sent with Enter → header and sidebar show "Study techniques for biology". The second message keeps the name.
+  - ✎/🗑 are 2 px apart and **don't move** when rename opens. The form opens as a dropdown under ✎.
+  - A blank rename is rejected. A manual rename survives later messages. 🗑 still opens the delete confirmation.
+- Spec examples:
+  - "What are some good study techniques for biology?" → "Study techniques for biology" (exact).
+  - "hello" → "hello" (exact).
+  - "Help me plan my trip to Japan next month" → "Plan trip to Japan next month". The spec's "Plan Japan trip" needs word reordering, which a local rule can't do reliably; recorded as a known difference.
 - [ ] 9. After approval and merge: sync `doc/wiki/architecture.md` (naming rule, new field).
