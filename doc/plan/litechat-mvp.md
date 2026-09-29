@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29. **Deadline: today.**
 - **Goal:** a working Django app that demonstrates LiteChat's core: *metered, a la carte access to LLMs from various providers*. Users log in, choose a billing account and one of three provider models, chat through the course proxy, and pay per token from their credit.
 - **Not the goal:** a full clone. Section 14 lists what is deliberately excluded.
-- **Status:** Phases 0–2 complete. Phase 3 is next. Tick items as they are completed.
+- **Status:** Phases 0–3 complete. Phase 4 is next. Tick items as they are completed.
 
 ---
 
@@ -153,26 +153,32 @@ Tests are written **inside each phase**, not saved for the end. Phase 12 runs th
 ## Phase 3: Billing accounts and credit
 *Depends on: 1, 2.*
 
-- [ ] 3.1 `billing/models.py`:
+- [x] 3.1 `billing/models.py`:
   - `BillingAccount` with `name`, `kind` (`personal`/`shared`), `status` (`active`/`suspended`), `credit` (`DecimalField(max_digits=12, decimal_places=6)`), `members` (M2M → User) and `created_at`. Its `__str__` is `"[Personal] NAME"`, as in LiteChat [SS].
   - (`UsageCharge` is created in Phase 7, because it references `chat.Message`.)
-- [ ] 3.2 `billing/admin.py`: register `BillingAccount` with list display (name, kind, status, credit) and `filter_horizontal` members. **Admins top up credit by editing this field.**
-- [ ] 3.3 `billing/management/commands/seed_demo.py`: `seed_demo --username U --password P [--credit 2.00]`.
+- [x] 3.2 `billing/admin.py`: register `BillingAccount` with list display (name, kind, status, credit) and `filter_horizontal` members. **Admins top up credit by editing this field.**
+- [x] 3.3 `billing/management/commands/seed_demo.py`: `seed_demo --username U --password P [--credit 2.00]`.
   - Creates or updates the user and a `[Personal]` active account with the given credit, and links them.
   - It is idempotent.
   - **Passwords come from arguments. None are hard-coded or committed.**
-- [ ] 3.4 `billing/views.py` `profile` plus `templates/billing/profile.html`:
+  - *Addition:* if `--password` is omitted, the command prompts for it, which keeps demo passwords out of shell history and the session transcripts. The account name is the user's full name (or username) in capitals, as in LiteChat. A re-run resets credit to `--credit` and reactivates the account.
+- [x] 3.4 `billing/views.py` `profile` plus `templates/billing/profile.html`:
   - A User Profile section (display name, username, member since).
   - A Billing Accounts list for **the user's accounts only**, with name, status badge and **AVAILABLE CREDIT** shown as `$X.XX`.
+  - *Implementation:* `billing/templatetags/money.py` has a `usd` filter (rounds half-up to cents, shows negatives as `-$0.01`). The sidebar "My Profile" link now uses `{% url 'billing:profile' %}`.
 - [ ] 3.5 Show the selected or first account's balance in the sidebar footer. This is optional; skip it if short on time.
-- [ ] 3.6 Tests in `billing/tests/`:
+  - *Skipped* (cut line item 1). The balance is on `/profile/`.
+- [x] 3.6 Tests in `billing/tests/`:
   - `seed_demo` creates the user and account with $2.00, and running it twice doesn't duplicate anything.
   - The profile page shows only the logged-in user's accounts and credit.
   - Another user's account is not listed.
   - Anonymous `GET /profile/` redirects to `/login/?next=/profile/` (add to `PROTECTED_URLS` in `chat/tests/test_auth.py`; moved from 2.5).
-- [ ] 3.7 Commit: `feat: add billing accounts, credit and profile page`.
+  - *Added:* model defaults and `__str__`, sub-cent precision, the `usd` filter, seed re-run reset and prompt, invalid credit rejected, suspended status shown, a user with no accounts, and an **admin top-up via the change form**.
+- [x] 3.7 Commit: `feat: add billing accounts, credit and profile page`.
 
 **Verify:** after `seed_demo`, `/profile/` shows "[Personal] … ACTIVE … $2.00". Changing the credit in the admin changes the value shown on the profile.
+
+**Result (2026-09-29):** migration `billing/0001_initial` (BillingAccount + members M2M). `billing` + auth tests: 26/26 pass. Full suite: 33/33 pass. `makemigrations --check`: no changes. Manual run against `runserver` with a temporary user (since deleted): `seed_demo` run twice → one user and one account. `/profile/` shows `[Personal] PHASE3CHECK`, Active, `$2.00`. Setting credit to 12.345 → `$12.35`. Anonymous `/profile/` → 302 to login.
 
 ---
 
