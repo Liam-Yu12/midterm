@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "Unauthorized",
+    "message": "invalid or inactive provider key",
+    "param": null,
+    "type": "authentication_error"
+  }
+}
