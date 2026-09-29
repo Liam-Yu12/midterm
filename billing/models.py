@@ -33,3 +33,23 @@ class BillingAccount(models.Model):
     @property
     def is_active(self):
         return self.status == self.Status.ACTIVE
+
+
+class UsageCharge(models.Model):
+    """Audit record of one metered reply. Survives deletion of the chat session."""
+
+    billing_account = models.ForeignKey(BillingAccount, on_delete=models.PROTECT, related_name='charges')
+    message = models.OneToOneField('chat.Message', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='charge')
+    session_label = models.CharField(max_length=150, help_text='Snapshot of the session ID and name.')
+    llm_model = models.ForeignKey('llm.LLMModel', on_delete=models.PROTECT, related_name='charges')
+    input_tokens = models.PositiveIntegerField()
+    output_tokens = models.PositiveIntegerField()
+    cost = models.DecimalField(max_digits=12, decimal_places=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f'{self.cost} from {self.billing_account} ({self.session_label})'

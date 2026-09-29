@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from billing.models import BillingAccount
+from billing.models import BillingAccount, UsageCharge
 from chat import services
 from chat.models import ChatSession, Message
 from llm.models import LLMModel
@@ -137,13 +137,99 @@ class SendMessageTests(MockedProviderTestCase):
         self.session.refresh_from_db()
         self.assertGreater(self.session.updated_at, long_ago)
 
-    def test_does_not_touch_credit_yet(self):
-        # Metering arrives in Phase 7; until then sending must not change the balance.
+
+
+class MeteredSendTests(MockedProviderTestCase):
+    """Phase 7: sending charges the session's billing account."""
+
+    def set_credit(self, credit, status=BillingAccount.Status.ACTIVE):
+        BillingAccount.objects.filter(pk=self.account.pk).update(credit=Decimal(credit), status=status)
+
+    def credit(self):
+        return BillingAccount.objects.get(pk=self.account.pk).credit
+
+    def test_successful_send_deducts_exact_cost_and_links_charge(self):
+        self.mock_complete()  # 187 in / 9 out on Luna ($0.40 / $1.60) -> $0.000089
+        self.client.post(self.send_url, {'content': 'HELLO'})
+
+        reply = self.session.messages.get(role='assistant')
+        charge = UsageCharge.objects.get()
+        self.assertEqual(reply.cost, Decimal('0.000089'))
+        self.assertEqual(charge.message, reply)
+        self.assertEqual(charge.cost, Decimal('0.000089'))
+        self.assertEqual((charge.input_tokens, charge.output_tokens), (187, 9))
+        self.assertEqual(charge.billing_account, self.account)
+        self.assertEqual(self.credit(), Decimal('2.00') - Decimal('0.000089'))
+
+    def test_zero_credit_blocks_send_without_calling_proxy(self):
+        self.set_credit('0')
+        complete = self.mock_complete()
+        response = self.client.post(self.send_url, {'content': 'HELLO'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Insufficient credit in [Personal] HANS LIAM YU. Ask an administrator to top up.')
+        self.assertContains(response, 'HELLO</textarea>')
+        complete.assert_not_called()
+        self.assertFalse(self.session.messages.exists())
+        self.assertFalse(UsageCharge.objects.exists())
+        self.assertEqual(self.credit(), Decimal('0'))
+
+    def test_suspended_account_blocks_send_without_calling_proxy(self):
+        self.set_credit('5', status=BillingAccount.Status.SUSPENDED)
+        complete = self.mock_complete()
+        response = self.client.post(self.send_url, {'content': 'HELLO'})
+        self.assertContains(response, 'This billing account is not active.')
+        complete.assert_not_called()
+        self.assertFalse(self.session.messages.exists())
+
+    def test_provider_error_charges_nothing(self):
+        self.mock_complete(side_effect=ProviderError('upstream', status_code=502))
+        self.client.post(self.send_url, {'content': 'HELLO'})
+        self.assertEqual(self.credit(), Decimal('2.00'))
+        self.assertFalse(UsageCharge.objects.exists())
+        self.assertFalse(self.session.messages.exists())
+
+    def test_truncated_reply_is_charged(self):
+        self.mock_complete(return_value=CompletionResult(text='cut', status='truncated',
+                                                         input_tokens=200, output_tokens=1024))
+        self.client.post(self.send_url, {'content': 'Write an essay.'})
+        expected = Decimal('0.001718')  # 200 x 0.40/1M + 1024 x 1.60/1M = 0.00008 + 0.0016384
+        self.assertEqual(UsageCharge.objects.get().cost, expected)
+        self.assertEqual(self.credit(), Decimal('2.00') - expected)
+        self.assertEqual(self.session.messages.get(role='assistant').status, Message.Status.TRUNCATED)
+
+    def test_low_but_positive_credit_allows_final_overdraw(self):
+        self.set_credit('0.00005')
         self.mock_complete()
         self.client.post(self.send_url, {'content': 'HELLO'})
-        self.account.refresh_from_db()
-        self.assertEqual(self.account.credit, Decimal('2.00'))
-        self.assertIsNone(self.session.messages.last().cost)
+        self.assertEqual(self.credit(), Decimal('-0.000039'))
+        complete = self.mock_complete()
+        response = self.client.post(self.send_url, {'content': 'again'})
+        self.assertContains(response, 'Insufficient credit')
+        complete.assert_not_called()
+
+    def test_charge_failure_rolls_back_messages_and_credit(self):
+        self.mock_complete()
+        with mock.patch('billing.services.UsageCharge.objects.create', side_effect=RuntimeError('db down')), \
+                self.assertRaises(RuntimeError):
+            services.send_message(self.session, 'HELLO')
+        self.assertFalse(self.session.messages.exists())
+        self.assertEqual(self.credit(), Decimal('2.00'))
+
+    def test_two_sessions_on_same_account_share_the_balance(self):
+        haiku = LLMModel.objects.get(api_model='claude-haiku-4-5-20251001')
+        other = ChatSession.objects.create(user=self.hans, billing_account=self.account, llm_model=haiku)
+        self.mock_complete()
+        self.client.post(self.send_url, {'content': 'one'})           # Luna: 0.000089
+        self.client.post(f'/chat/{other.pk}/send/', {'content': 'two'})  # Haiku: 187 x 1/1M + 9 x 5/1M = 0.000232
+        self.assertEqual(self.credit(), Decimal('2.00') - Decimal('0.000089') - Decimal('0.000232'))
+        self.assertEqual(UsageCharge.objects.filter(billing_account=self.account).count(), 2)
+
+    def test_profile_shows_updated_balance(self):
+        self.mock_complete(return_value=CompletionResult(text='long', status='complete',
+                                                         input_tokens=100_000, output_tokens=100_000))
+        self.client.post(self.send_url, {'content': 'HELLO'})  # 0.04 + 0.16 = 0.20
+        self.assertContains(self.client.get('/profile/'), '$1.80')
 
 
 class SendAccessTests(MockedProviderTestCase):
