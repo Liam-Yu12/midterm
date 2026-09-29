@@ -4,15 +4,14 @@
 <div class="app">
   <aside class="sidebar">
     <div class="sidebar-header">
-      <a href="/chat/" class="brand">LiteChat</a>
+      <a href="{% url 'chat:home' %}" class="brand">LiteChat</a>
       <form method="post" action="{% url 'logout' %}" class="logout-form">
         {% csrf_token %}
         <button type="submit" class="btn btn-link">Log out</button>
       </form>
     </div>
 
-    {# /chat/new/ is added in Phase 5. #}
-    <a href="/chat/new/" class="btn btn-primary sidebar-new">+ New conversation</a>
+    <a href="{% url 'chat:new_session' %}" class="btn btn-primary sidebar-new">+ New conversation</a>
 
     <nav class="sidebar-section">
       <h2 class="sidebar-heading">Sessions</h2>

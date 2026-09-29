@@ -1,0 +1,23 @@
+{% extends "app_layout.html" %}
+
+{% block title %}{{ session.name }} · LiteChat{% endblock %}
+
+{% block content %}
+<section class="session">
+  <header class="session-header">
+    <h1>{{ session.name }}</h1>
+    <div class="session-meta">
+      <span class="pill">Model: {{ session.llm_model.display_name }}</span>
+      <span class="muted">Billing account: {{ session.billing_account }}</span>
+    </div>
+  </header>
+
+  <div class="chat-messages">
+    {% for message in chat_messages %}
+      <div class="bubble bubble-{{ message.role }}">{{ message.content|linebreaksbr }}</div>
+    {% empty %}
+      <p class="muted">No messages yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -2,8 +2,8 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-# App pages that must require login. Phase 5 adds /chat/new/.
-PROTECTED_URLS = ['/chat/', '/profile/']
+# App pages that must require login.
+PROTECTED_URLS = ['/chat/', '/chat/new/', '/profile/']
 
 PASSWORD = 'correct-horse-battery'
 
