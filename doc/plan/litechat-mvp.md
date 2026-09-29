@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29. **Deadline: today.**
 - **Goal:** a working Django app that demonstrates LiteChat's core: *metered, a la carte access to LLMs from various providers*. Users log in, choose a billing account and one of three provider models, chat through the course proxy, and pay per token from their credit.
 - **Not the goal:** a full clone. Section 14 lists what is deliberately excluded.
-- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phase 6 is next. Tick items as they are completed.
+- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phase 6 is complete (the live-proxy check is pending, as with 4b.10). Phase 7 is next. Tick items as they are completed.
 
 ---
 
@@ -280,30 +280,44 @@ Tests are written **inside each phase**, not saved for the end. Phase 12 runs th
 ## Phase 6: Chat through the LiteChat proxy
 *Depends on: 4b, 5.*
 
-- [ ] 6.1 `chat/services.py` `build_turns(session)`: the stored messages in order, as `Turn`s. In the MVP there's no system prompt; the parameter exists for later.
-- [ ] 6.2 `chat/services.py` `send_message(session, text)`:
+- [x] 6.1 `chat/services.py` `build_turns(session)`: the stored messages in order, as `Turn`s. In the MVP there's no system prompt; the parameter exists for later.
+- [x] 6.2 `chat/services.py` `send_message(session, text)`:
   - Validate the text: not blank, maximum length (e.g. 8,000 chars).
   - Build the turns plus the new user turn.
   - Call `llm.providers.complete`.
   - Hand the result to metering (Phase 7). **The user message and assistant reply are saved together only on success.**
-- [ ] 6.3 `chat.views.session_detail` + `templates/chat/session_detail.html`:
+- [x] 6.3 `chat.views.session_detail` + `templates/chat/session_detail.html`:
   - A header with the session name, a model pill ("Model: GPT-5.6 Luna") and the billing account.
   - Message bubbles: user on the right, assistant on the left. Truncated replies show a "(reply cut off: token limit)" note.
   - A message form at the bottom.
-- [ ] 6.4 `chat.views.send_message` (POST only):
+- [x] 6.4 `chat.views.send_message` (POST only):
   - Call the service.
   - On success, **redirect** (POST-redirect-GET) to `/chat/<id>/`.
   - On failure, re-render with the error and the **draft kept in the textarea**.
-- [ ] 6.5 `static/js/chat.js`: on submit, disable the button, show "Thinking…", and scroll to the bottom on load. This is the MVP's substitute for streaming.
-- [ ] 6.6 Bump `session.updated_at` on every successful exchange so the sidebar order reflects recent use.
-- [ ] 6.7 Tests in `chat/tests/test_chat.py`, with `llm.providers.complete` mocked:
+- [x] 6.5 `static/js/chat.js`: on submit, disable the button, show "Thinking…", and scroll to the bottom on load. This is the MVP's substitute for streaming.
+- [x] 6.6 Bump `session.updated_at` on every successful exchange so the sidebar order reflects recent use.
+- [x] 6.7 Tests in `chat/tests/test_chat.py`, with `llm.providers.complete` mocked:
   - Sending saves the user message and the assistant reply, then redirects.
   - The second message includes the first exchange in `turns` (multi-turn).
   - A blank message is rejected.
   - Another user's session returns 404 on GET and on send.
-- [ ] 6.8 Commit: `feat: chat through proxy adapters with saved history`.
+- [x] 6.8 Commit: `feat: chat through proxy adapters with saved history`.
 
 **Verify:** a real message in a Luna session gets a reply, and a follow-up question that depends on the first answer is answered in context.
+
+**Result (2026-09-29):** `chat.tests.test_chat` 17/17 pass. Full suite 99/99 pass (placeholder keys; `llm.providers.complete` is mocked, and `requests.post` is patched to fail if reached).
+
+- **Real-proxy check: pending** until the keys are reissued (same hold as 4b.10). It's covered by 12.3.
+- **Substitute check:** `runserver` pointed at a **local fake proxy** (scratch files outside the repo; a settings override sets `LITECHAT_PROXY_BASE_URL=http://127.0.0.1:8799`; placeholder keys). The fake proxy is stateless and answers in each provider's response shape.
+  - For Luna, Haiku and Gemini: "My name is Hans." then "What is my name?" → "Your name is Hans." Prompt tokens rose 181 → 183, showing the full history was sent.
+  - A fake 429 showed "The AI service is busy…", kept the draft, and saved nothing.
+  - Credit was unchanged ($2.00). Metering is Phase 7.
+
+*Notes:*
+- `send_message` validates input (blank, and a maximum of 8,000 chars), calls the adapter with the full history, and saves the user and assistant messages plus a `updated_at` bump in one transaction only on success.
+- The token counts are stored on the assistant message now. `cost` stays empty until Phase 7.
+- `ProviderError.user_message` is already shown to the user. Phase 11 reviews the wording.
+- `chat.js` sets the textarea to `readOnly` (not `disabled`) so the text is still submitted.
 
 ---
 
