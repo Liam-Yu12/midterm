@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from billing.models import BillingAccount
+from billing.services import ensure_personal_account
 
 
 class Command(BaseCommand):
@@ -40,17 +40,7 @@ class Command(BaseCommand):
             user.set_password(password)
             user.save()
 
-            account = user.billing_accounts.filter(kind=BillingAccount.Kind.PERSONAL).first()
-            account_created = account is None
-            if account_created:
-                account = BillingAccount.objects.create(
-                    name=(user.get_full_name() or user.get_username()).upper(),
-                    kind=BillingAccount.Kind.PERSONAL,
-                )
-                account.members.add(user)
-            account.status = BillingAccount.Status.ACTIVE
-            account.credit = credit
-            account.save()
+            account, account_created = ensure_personal_account(user, credit)
 
         self.stdout.write(self.style.SUCCESS(
             f"{'Created' if user_created else 'Updated'} user '{username}'; "
