@@ -83,7 +83,8 @@ def rename_session(request, pk):
         messages.error(request, "Session name can't be blank.")
     else:
         session.name = name
-        session.save(update_fields=['name'])  # keeps updated_at: renaming isn't "using" the session
+        session.name_set_by_user = True  # automatic naming must never overwrite this
+        session.save(update_fields=['name', 'name_set_by_user'])  # keeps updated_at: renaming isn't "using" it
     return redirect('chat:session_detail', pk=session.pk)
 
 

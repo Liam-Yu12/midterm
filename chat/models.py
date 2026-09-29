@@ -11,6 +11,8 @@ class ChatSession(models.Model):
     billing_account = models.ForeignKey('billing.BillingAccount', on_delete=models.PROTECT, related_name='chat_sessions')
     llm_model = models.ForeignKey('llm.LLMModel', on_delete=models.PROTECT, related_name='chat_sessions')
     name = models.CharField(max_length=100, default=DEFAULT_NAME)
+    # True once the user renames the session; automatic naming never overrides it.
+    name_set_by_user = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
