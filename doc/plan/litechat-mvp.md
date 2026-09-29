@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29. **Deadline: today.**
 - **Goal:** a working Django app that demonstrates LiteChat's core: *metered, a la carte access to LLMs from various providers*. Users log in, choose a billing account and one of three provider models, chat through the course proxy, and pay per token from their credit.
 - **Not the goal:** a full clone. Section 14 lists what is deliberately excluded.
-- **Status:** Phase 0 complete. Phase 1 is next. Tick items as they are completed.
+- **Status:** Phases 0–1 complete. Phase 2 is next. Tick items as they are completed.
 
 ---
 
@@ -102,20 +102,25 @@ Tests are written **inside each phase**, not saved for the end. Phase 12 runs th
 ## Phase 1: Project / Django setup
 *Depends on: Phase 0.*
 
-- [ ] 1.1 Create `.venv` with Python 3.13. Write `requirements.txt` (`Django>=5.2,<5.3`, `requests`, `python-dotenv`) and install it.
-- [ ] 1.2 `django-admin startproject litechat .` and `startapp billing`, `startapp llm`, `startapp chat`. Register the apps in `INSTALLED_APPS`.
-- [ ] 1.3 `litechat/settings.py`:
+- [x] 1.1 Create `.venv` with Python 3.13. Write `requirements.txt` (`Django>=5.2,<5.3`, `requests`, `python-dotenv`) and install it.
+  - *Deviation:* only `Django` and `python-dotenv` were installed, following the instruction to install only Phase 1 dependencies. `requests` moves to 4b.1. Installed: Django 5.2.17, python-dotenv 1.2.3 (+ asgiref, sqlparse).
+- [x] 1.2 `django-admin startproject litechat .` and `startapp billing`, `startapp llm`, `startapp chat`. Register the apps in `INSTALLED_APPS`.
+  - *Note:* the generated per-app `tests.py` stubs were removed, because later phases use `tests/` packages and both cannot coexist. The generated hard-coded `SECRET_KEY` was removed (see 1.3).
+- [x] 1.3 `litechat/settings.py`:
   - Load `.env` with `python-dotenv`.
   - Read `SECRET_KEY` from `DJANGO_SECRET_KEY` and `DEBUG` from `DJANGO_DEBUG`. The app fails loudly if `SECRET_KEY` is missing and DEBUG is off.
   - Add `TEMPLATES` dirs and `STATIC` settings.
   - Set `LOGIN_URL = "/login/"`, `LOGIN_REDIRECT_URL = "/chat/"`, `LOGOUT_REDIRECT_URL = "/login/"`.
   - Add app settings: `LITECHAT_PROXY_BASE_URL = "https://proxy.litechat.ai"`, `LITECHAT_PROXY_TIMEOUT = 120`, `LITECHAT_MAX_OUTPUT_TOKENS = 1024`.
-- [ ] 1.4 Add `DJANGO_SECRET_KEY` and `DJANGO_DEBUG` to `.env.example` (names only), and add real values to the local `.env`.
-- [ ] 1.5 `templates/base.html` with a minimal `static/css/app.css`. Simple and clean; no pixel-matching.
-- [ ] 1.6 `litechat/urls.py` with admin, `/` redirecting to `/chat/`, and includes for `chat`, `billing` and the auth views.
-- [ ] 1.7 Commit: `chore: scaffold Django project and apps`.
+- [x] 1.4 Add `DJANGO_SECRET_KEY` and `DJANGO_DEBUG` to `.env.example` (names only), and add real values to the local `.env`. A random key was generated into `.env` without printing it.
+- [x] 1.5 `templates/base.html` with a minimal `static/css/app.css`. Simple and clean; no pixel-matching.
+- [x] 1.6 `litechat/urls.py` with admin, `/` redirecting to `/chat/`, and includes for `chat`, `billing` and the auth views.
+  - *Deviation:* the auth views are left for Phase 2 (2.1 wires them). `chat/urls.py` and `billing/urls.py` exist with empty route lists, so `/chat/` returns 404 until Phase 5.
+- [x] 1.7 Commit: `chore: scaffold Django project and apps`.
 
-**Tests:** none beyond the checks below.
+**Tests:** *(added at the user's request)* `litechat/tests.py` has 7 smoke tests: apps installed, proxy and auth settings, base template links the stylesheet, the stylesheet is findable, `/` redirects to `/chat/`, and the admin login loads.
+
+**Result (2026-09-29):** `check` shows no issues. `makemigrations --check` shows no changes. `migrate` OK. Tests: 7/7 pass. `runserver`: `/` gives 302 → `/chat/`, `/admin/login/` gives 200, `/static/css/app.css` gives 200. With `DJANGO_DEBUG=False` and no key, the app raises `ImproperlyConfigured`.
 **Verify:** `python manage.py check` passes. `python manage.py migrate` succeeds. `runserver` starts, and `/admin/` loads.
 
 ---
@@ -189,6 +194,7 @@ Tests are written **inside each phase**, not saved for the end. Phase 12 runs th
 ## Phase 4b: Provider adapters (proxy client)
 *Depends on: 4. Can be done alongside 3 and 5.*
 
+- [ ] 4b.0 Add `requests` to `requirements.txt` and install it (moved here from 1.1).
 - [ ] 4b.1 `llm/providers.py`:
   - `Turn(role: "user"|"assistant", content: str)`
   - `CompletionResult(text, status: "complete"|"truncated", input_tokens, output_tokens)`
