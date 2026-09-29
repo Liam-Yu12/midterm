@@ -27,3 +27,69 @@ a { color: var(--primary); }
   margin: 0 auto;
   padding: 24px 16px;
 }
+
+.muted { color: var(--muted); font-size: 0.9rem; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.btn {
+  display: inline-block;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-link { background: none; color: var(--primary); padding: 4px 0; }
+
+input[type="text"], input[type="password"], textarea, select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  background: #fbfcfd;
+}
+
+.form-error {
+  color: #b42318;
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+/* --- Login --- */
+.login-page { max-width: 420px; margin: 10vh auto; padding: 0 16px; }
+.login-title { text-align: center; font-size: 2.25rem; margin-bottom: 16px; }
+.login-card { display: flex; flex-direction: column; gap: 8px; }
+.login-card label { font-size: 0.8rem; text-transform: uppercase; color: var(--muted); margin-top: 8px; }
+.login-card button { margin-top: 16px; }
+
+/* --- App layout: sidebar + main --- */
+.app { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.sidebar-header { display: flex; justify-content: space-between; align-items: center; }
+.brand { font-weight: 700; font-size: 1.2rem; color: var(--text); text-decoration: none; }
+.sidebar-new { text-align: center; }
+.sidebar-heading { font-size: 0.75rem; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.sidebar-footer { margin-top: auto; }
+.main { flex: 1; padding: 24px; min-width: 0; }
+.empty-state { text-align: center; margin-top: 20vh; color: var(--muted); }

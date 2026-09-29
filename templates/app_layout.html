@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="/chat/" class="brand">LiteChat</a>
+      <form method="post" action="{% url 'logout' %}" class="logout-form">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-link">Log out</button>
+      </form>
+    </div>
+
+    {# /chat/new/ is added in Phase 5 and /profile/ in Phase 3. #}
+    <a href="/chat/new/" class="btn btn-primary sidebar-new">+ New conversation</a>
+
+    <nav class="sidebar-section">
+      <h2 class="sidebar-heading">Sessions</h2>
+      {% block session_list %}
+        <p class="muted">No sessions yet.</p>
+      {% endblock %}
+    </nav>
+
+    <nav class="sidebar-section sidebar-footer">
+      <h2 class="sidebar-heading">Account</h2>
+      <a href="/profile/">My Profile</a>
+      <p class="muted">Signed in as {{ user.get_username }}</p>
+    </nav>
+  </aside>
+
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}
