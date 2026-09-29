@@ -7,7 +7,9 @@ one call:
     complete(llm_model, turns, system_prompt=None) -> CompletionResult
 
 Keys are read from the environment at call time and are never logged or included
-in errors. Requests are not retried (proxy docs: "do not automatically retry").
+in errors; `sensitive_variables` hides them from Django's debug/error reports if an
+unexpected exception escapes. Requests are not retried (proxy docs: "do not
+automatically retry").
 """
 import logging
 import os
@@ -15,6 +17,7 @@ from dataclasses import dataclass
 
 import requests
 from django.conf import settings
+from django.views.decorators.debug import sensitive_variables
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +66,7 @@ class ProviderError(Exception):
 
 # --- Request builders: (api_model, turns, system_prompt, max_tokens, key) -> (url, headers, body)
 
+@sensitive_variables('key')
 def _build_openai(api_model, turns, system_prompt, max_tokens, key):
     messages = [{'role': 'system', 'content': system_prompt}] if system_prompt else []
     messages += [{'role': t.role, 'content': t.content} for t in turns]
@@ -73,6 +77,7 @@ def _build_openai(api_model, turns, system_prompt, max_tokens, key):
     )
 
 
+@sensitive_variables('key')
 def _build_anthropic(api_model, turns, system_prompt, max_tokens, key):
     body = {
         'model': api_model,
@@ -89,6 +94,7 @@ def _build_anthropic(api_model, turns, system_prompt, max_tokens, key):
     )
 
 
+@sensitive_variables('key')
 def _build_google(api_model, turns, system_prompt, max_tokens, key):
     body = {
         'contents': [
@@ -157,6 +163,9 @@ def _error_kind_for_status(status_code):
     return 'upstream'
 
 
+# No arguments: mask *all* locals, here and in every frame below (requests/urllib3
+# internals hold the headers under other names, e.g. `kwargs`).
+@sensitive_variables()
 def complete(llm_model, turns, system_prompt=None):
     """Send the conversation to the model's provider interface and return the reply.
 
@@ -164,7 +173,8 @@ def complete(llm_model, turns, system_prompt=None):
     """
     provider = llm_model.provider
     if provider not in _ADAPTERS:
-        raise ProviderError('bad_request', f'Unsupported provider: {provider}')
+        logger.error('Unsupported provider=%s for model=%s', provider, llm_model.api_model)
+        raise ProviderError('bad_request')
     build, parse = _ADAPTERS[provider]
 
     key = os.environ.get(KEY_ENV_VARS[provider], '')

@@ -38,6 +38,9 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
+# Hide proxy keys from error pages/reports even with DEBUG on (see litechat/debug.py).
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'litechat.debug.AlwaysSafeExceptionReporterFilter'
+
 
 # Application definition
 
