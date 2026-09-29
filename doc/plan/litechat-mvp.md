@@ -467,8 +467,8 @@ Manual run on `runserver` + the **local fake proxy** (placeholder keys; the real
 **Result (2026-09-29):** `chat.tests.test_errors` 9/9 pass. Full suite 154/154 pass. `makemigrations --check`: no changes. Secret scan: 81 working files and the full git history hold no keys, and `.env`/`db.sqlite3` are untracked.
 
 The verify step was done against the **local fake proxy** (the real keys must not be used), which rejects keys containing "wrong" with the real proxy's 401 body:
-- With `BUILD_OPENAI_KEY=wrong-placeholder-key`: the page showed "The AI service rejected our credentials…", the draft was kept, 0 messages, 0 charges, credit .00. The server log held `kind=auth status=401` only, with no key and no proxy detail.
-- Restarted with a good placeholder: the send worked (2 messages, 1 charge, credit .999908).
+- With `BUILD_OPENAI_KEY=wrong-placeholder-key`: the page showed "The AI service rejected our credentials…", the draft was kept, 0 messages, 0 charges, credit $2.00. The server log held `kind=auth status=401` only, with no key and no proxy detail.
+- Restarted with a good placeholder: the send worked (2 messages, 1 charge, credit $1.999908).
 
 ---
 
