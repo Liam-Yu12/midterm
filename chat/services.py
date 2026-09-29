@@ -5,7 +5,8 @@ from billing import services as billing
 from llm import providers
 from llm.providers import ProviderError, Turn
 
-from .models import Message
+from .models import ChatSession, Message
+from .naming import suggest_session_name
 
 MAX_MESSAGE_LENGTH = 8000
 
@@ -35,6 +36,8 @@ def send_message(session, text):
     3. On success, save the user message and the reply and charge the reply's cost
        to the session's billing account in one transaction: all or nothing.
        Truncated replies are charged too, since their tokens were consumed.
+       The first successful exchange also names an untitled session after the
+       user's message (locally derived; never overrides a name the user chose).
     Returns the saved assistant Message.
     """
     text = (text or '').strip()
@@ -48,7 +51,8 @@ def send_message(session, text):
     except billing.BillingError as exc:
         raise SendError(exc.user_message) from exc
 
-    turns = build_turns(session) + [Turn(role=Message.Role.USER, content=text)]
+    history = build_turns(session)
+    turns = history + [Turn(role=Message.Role.USER, content=text)]
     try:
         result = providers.complete(session.llm_model, turns)
     except ProviderError as exc:
@@ -67,5 +71,9 @@ def send_message(session, text):
         billing.record_charge(
             session.billing_account, reply, session.llm_model, result.input_tokens, result.output_tokens,
         )
-        session.save(update_fields=['updated_at'])  # auto_now: moves the session up the list
+        fields = ['updated_at']  # auto_now: moves the session up the list
+        if not history and not session.name_set_by_user and session.name == ChatSession.DEFAULT_NAME:
+            session.name = suggest_session_name(text)
+            fields.append('name')
+        session.save(update_fields=fields)
     return reply

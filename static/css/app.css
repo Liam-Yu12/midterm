@@ -166,7 +166,12 @@ input[type="text"], input[type="password"], textarea, select {
 .icon-btn::-webkit-details-marker { display: none; }
 .icon-btn:hover { background: var(--bg); }
 .rename[open] .icon-btn { background: var(--bg); }
-.rename-form { display: flex; gap: 8px; margin-top: 8px; max-width: 480px; }
+/* ✎ and 🗑 stay side by side; the rename form opens as a dropdown under ✎. */
+.session-actions { display: inline-flex; align-items: center; gap: 2px; }
+.rename { position: relative; }
+.rename-form { display: flex; gap: 8px; position: absolute; top: calc(100% + 6px); left: 0; z-index: 10;
+               width: min(420px, 70vw); padding: 10px; background: var(--surface);
+               border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08); }
 .flash { border-radius: 8px; padding: 8px 12px; margin: 0 0 16px; }
 .flash-error { color: #b42318; background: #fef3f2; border: 1px solid #fecdca; }
 .flash-success { color: #067647; background: #ecfdf3; border: 1px solid #abefc6; }
