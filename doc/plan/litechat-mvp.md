@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29. **Deadline: today.**
 - **Goal:** a working Django app that demonstrates LiteChat's core: *metered, a la carte access to LLMs from various providers*. Users log in, choose a billing account and one of three provider models, chat through the course proxy, and pay per token from their credit.
 - **Not the goal:** a full clone. Section 14 lists what is deliberately excluded.
-- **Status:** Phases 0–1 complete. Phase 2 is next. Tick items as they are completed.
+- **Status:** Phases 0–2 complete. Phase 3 is next. Tick items as they are completed.
 
 ---
 
@@ -128,20 +128,25 @@ Tests are written **inside each phase**, not saved for the end. Phase 12 runs th
 ## Phase 2: Authentication
 *Depends on: 1.*
 
-- [ ] 2.1 Wire `/login/` (`LoginView`) and `/logout/` (`LogoutView`, POST) in `litechat/urls.py`.
-- [ ] 2.2 `templates/registration/login.html`: "Welcome!", Username, Password, and a LOG-IN button, as in LiteChat [SS]. Show an error when login fails.
-- [ ] 2.3 `templates/app_layout.html`, which every logged-in page extends:
+- [x] 2.1 Wire `/login/` (`LoginView`) and `/logout/` (`LogoutView`, POST) in `litechat/urls.py`. `redirect_authenticated_user=True`, so logged-in users visiting `/login/` go to `/chat/`.
+- [x] 2.2 `templates/registration/login.html`: "Welcome!", Username, Password, and a LOG-IN button, as in LiteChat [SS]. Show an error when login fails.
+- [x] 2.3 `templates/app_layout.html`, which every logged-in page extends:
   - A sidebar with the LiteChat name, a logout button (a POST form), "New conversation", the session list (filled in Phase 8), and a My Profile link.
   - A main content block.
-- [ ] 2.4 Protect every app view with `@login_required`.
-- [ ] 2.5 Tests in `chat/tests/test_auth.py`:
+  - *Note:* the "New conversation" (`/chat/new/`) and "My Profile" (`/profile/`) links are hard-coded, and return 404 until Phases 5 and 3. The session list is a placeholder until Phase 8.
+- [x] 2.4 Protect every app view with `@login_required`.
+  - *Deviation:* a bare, login-protected `chat.views.home` (`/chat/`, `templates/chat/home.html`) was added now, so that login has a page to land on. Phase 5.4 replaces its content with the empty state.
+- [x] 2.5 Tests in `chat/tests/test_auth.py`:
   - An anonymous `GET /chat/`, `/chat/new/` and `/profile/` redirects to `/login/?next=…`.
   - A valid login redirects to `/chat/`.
   - A bad password shows an error.
   - Logout (POST) ends the session.
-- [ ] 2.6 Commit: `feat: add login and logout`.
+  - *Deviation:* `/chat/new/` and `/profile/` don't exist yet, so their anonymous-redirect checks moved to 5.5 and 3.6. `PROTECTED_URLS` in `test_auth.py` gets those URLs then. Extra tests were added: login page content, `next` handling, logged-in users skip `/login/`, logout by GET is refused (405), and `/chat/` uses the app layout.
+- [x] 2.6 Commit: `feat: add login and logout`.
 
 **Verify:** tests pass. In the browser, `/chat/` goes to `/login/`, logging in lands on `/chat/`, and logout returns to `/login/`.
+
+**Result (2026-09-29):** `check` shows no issues. `chat.tests.test_auth`: 9/9 pass. Full suite: 16/16 pass. Against `runserver` with a temporary user (since deleted): anonymous `/chat/` gives 302 → `/login/?next=/chat/`, a bad password gives 200 with the error, a good login gives 302 → `/chat/`, `/chat/` gives 200 "Signed in as …", POST `/logout/` gives 302 → `/login/`, and `/chat/` afterwards gives 302 → login.
 
 ---
 
@@ -164,6 +169,7 @@ Tests are written **inside each phase**, not saved for the end. Phase 12 runs th
   - `seed_demo` creates the user and account with $2.00, and running it twice doesn't duplicate anything.
   - The profile page shows only the logged-in user's accounts and credit.
   - Another user's account is not listed.
+  - Anonymous `GET /profile/` redirects to `/login/?next=/profile/` (add to `PROTECTED_URLS` in `chat/tests/test_auth.py`; moved from 2.5).
 - [ ] 3.7 Commit: `feat: add billing accounts, credit and profile page`.
 
 **Verify:** after `seed_demo`, `/profile/` shows "[Personal] … ACTIVE … $2.00". Changing the credit in the admin changes the value shown on the profile.
@@ -246,6 +252,7 @@ Tests are written **inside each phase**, not saved for the end. Phase 12 runs th
   - A valid POST creates a session named "Untitled session" with the chosen account and model, and redirects.
   - Choosing another user's account, or a suspended account, is rejected.
   - A user with no active account sees a clear message.
+  - Anonymous `GET /chat/new/` redirects to login (add to `PROTECTED_URLS`; moved from 2.5).
 - [ ] 5.6 Commit: `feat: add new conversation with billing account and model selection`.
 
 **Verify:** in the browser, + leads to the picker, and choosing an account and model opens an empty session page showing the model and account.
