@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29. **Deadline: today.**
 - **Goal:** a working Django app that demonstrates LiteChat's core: *metered, a la carte access to LLMs from various providers*. Users log in, choose a billing account and one of three provider models, chat through the course proxy, and pay per token from their credit.
 - **Not the goal:** a full clone. Section 14 lists what is deliberately excluded.
-- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phases 6–7 are complete (their live-proxy checks are pending, as with 4b.10). Phase 8 is next. Tick items as they are completed.
+- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phases 6–10 are complete (the live-proxy checks for 6–7 are pending, as with 4b.10). Phase 11 is next. Tick items as they are completed.
 
 ---
 
@@ -379,46 +379,58 @@ Manual run on `runserver` + the **local fake proxy** (placeholder keys; the real
 ## Phase 8: Saved conversation / session history
 *Depends on: 5, 6.*
 
-- [ ] 8.1 A context processor or template tag supplies the sidebar session list for `request.user`, newest first by `updated_at`. Each item shows the name and date (e.g. "Sep 29, 2026") and links to `/chat/<id>/`. The current session is highlighted.
-- [ ] 8.2 Opening an older session shows its full history, and further sends continue that conversation (history comes from the DB, since the proxy is stateless).
-- [ ] 8.3 Tests:
+- [x] 8.1 A context processor or template tag supplies the sidebar session list for `request.user`, newest first by `updated_at`. Each item shows the name and date (e.g. "Sep 29, 2026") and links to `/chat/<id>/`. The current session is highlighted.
+- [x] 8.2 Opening an older session shows its full history, and further sends continue that conversation (history comes from the DB, since the proxy is stateless).
+- [x] 8.3 Tests:
   - The sidebar shows only the user's sessions, in `updated_at` order.
   - Reopening a session renders every stored message in order.
   - Data persists across logout and login (same DB).
-- [ ] 8.4 Commit: `feat: list saved sessions in sidebar`.
+- [x] 8.4 Commit: `feat: list saved sessions in sidebar`.
 
 **Verify:** create two sessions with different providers, log out and back in, and both are listed with their histories intact.
+
+**Result (2026-09-29):** `chat/context_processors.py` `sidebar_sessions` (registered in settings) supplies the list to `app_layout.html`. Items show the name and `M j, Y` date. The open session gets `active` + `aria-current`. There's no pagination (LiteChat's infinite scroll is out of scope). Commit `49ec43c`. Manual check (dev server + local fake proxy, placeholder keys): Luna and Gemini sessions are listed newest first, survive logout/login with their history, and the current one is highlighted.
 
 ---
 
 ## Phase 9: Session rename
 *Depends on: 8.*
 
-- [ ] 9.1 `chat.views.rename_session` (POST `name`):
+- [x] 9.1 `chat.views.rename_session` (POST `name`):
   - Trim it and cap it at 100 chars. A blank name is rejected (the old name is kept).
   - Scoped to the owner.
   - Redirect back.
-- [ ] 9.2 UI: a ✎ button in the session header reveals an inline form (a small JS toggle, or a plain `<details>` element).
-- [ ] 9.3 Tests: the owner can rename; a blank name is rejected; another user gets 404; GET is not allowed (405).
-- [ ] 9.4 Commit: `feat: rename chat sessions`.
+- [x] 9.2 UI: a ✎ button in the session header reveals an inline form (a small JS toggle, or a plain `<details>` element).
+- [x] 9.3 Tests: the owner can rename; a blank name is rejected; another user gets 404; GET is not allowed (405).
+- [x] 9.4 Commit: `feat: rename chat sessions`.
 
 **Verify:** a session renamed in the browser shows the new name in both the header and the sidebar.
+
+**Result (2026-09-29):** a ✎ `<details>` toggle in the header opens the inline form. The name is trimmed, cut to 100 chars, and blank names are rejected with a message. Renaming does **not** change `updated_at` (so it doesn't reorder the list). Commit `64caefb`. Manual check: the header and sidebar show "Trip planning", and a blank rename kept it.
+
+*Deviation:* `app_layout.html` now renders Django `messages` (flash). This is needed for the blank-name rejection and delete confirmation, and is the only Phase 11-adjacent UI added.
 
 ---
 
 ## Phase 10: Session deletion
 *Depends on: 8.*
 
-- [ ] 10.1 `chat.views.delete_session`: GET shows `session_confirm_delete.html` ("Delete 'NAME'? This cannot be undone."). POST deletes the session and redirects to `/chat/`. Scoped to the owner.
-- [ ] 10.2 **Billing records are kept.** Deleting a session deletes its messages. `UsageCharge.message` uses `SET_NULL` and keeps `session_label` (from 7.5), so the charge history survives.
-- [ ] 10.3 UI: a 🗑 button in the session header (and/or on sidebar items) leads to the confirm page.
-- [ ] 10.4 Tests:
+- [x] 10.1 `chat.views.delete_session`: GET shows `session_confirm_delete.html` ("Delete 'NAME'? This cannot be undone."). POST deletes the session and redirects to `/chat/`. Scoped to the owner.
+- [x] 10.2 **Billing records are kept.** Deleting a session deletes its messages. `UsageCharge.message` uses `SET_NULL` and keeps `session_label` (from 7.5), so the charge history survives.
+- [x] 10.3 UI: a 🗑 button in the session header (and/or on sidebar items) leads to the confirm page.
+- [x] 10.4 Tests:
   - The owner can delete, and the session and its messages are gone.
   - `UsageCharge` rows remain and the balance is unchanged.
   - Another user gets 404.
-- [ ] 10.5 Commit: `feat: delete chat sessions`.
+- [x] 10.5 Commit: `feat: delete chat sessions`.
 
 **Verify:** after deleting in the browser, the session disappears from the sidebar and its charges are still visible in the admin.
+
+**Result (2026-09-29):** 🗑 links appear in the header **and** on each sidebar item (as in LiteChat [SS]), leading to the confirm page. POST deletes the session and redirects to `/chat/` with "Deleted '…'." Commit `63f9f94`. Manual check: after deleting the Gemini session, only "Trip planning" remains. Charges were 2 before and 2 after (the deleted one has `message=NULL` and label `#10 Untitled session`), and the balance was unchanged.
+
+*Note:* `UsageCharge.session_label` is a snapshot taken at charge time, so it doesn't follow later renames.
+
+**Tests (Phases 8–10):** `chat.tests.test_sessions` 24/24 pass. Full suite 145/145 pass. `makemigrations --check`: no changes. All run with placeholder keys and a guard that fails any test reaching the proxy.
 
 ---
 
