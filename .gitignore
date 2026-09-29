@@ -1,0 +1,16 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python / Django
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
+staticfiles/
+
+# OS / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
