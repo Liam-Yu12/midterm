@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29. **Deadline: today.**
 - **Goal:** a working Django app that demonstrates LiteChat's core: *metered, a la carte access to LLMs from various providers*. Users log in, choose a billing account and one of three provider models, chat through the course proxy, and pay per token from their credit.
 - **Not the goal:** a full clone. Section 14 lists what is deliberately excluded.
-- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phases 6–11 are complete. **Phase 12: local verification passed.** The real-proxy check (12.3) and the merge (12.6) are **on hold** until fresh keys are issued (see 4b.10). Tick items as they are completed.
+- **Status:** MVP complete and merged to `main` (see 12.6). Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phases 6–11 are complete. **Phase 12: local verification passed.** The real-proxy check (12.3) and the merge (12.6) are **on hold** until fresh keys are issued (see 4b.10). Tick items as they are completed.
 
 ---
 
@@ -493,7 +493,7 @@ The verify step was done against the **local fake proxy** (the real keys must no
   - No key is in any template or static file.
 - [x] 12.5 Quick review of the diff for leftover debug code and unrelated changes.
 - [ ] 12.6 Tick this checklist, then merge `feat/litechat-mvp` into `main` (`git merge --no-ff`) **only if 12.1–12.4 pass**.
-  - **Not merged.** Holding for the user's go-ahead and the real-proxy check in 12.3.
+  - **Approved by the user (2026-09-29)** to merge with the real-proxy part of 12.3 still on hold. Local checks 12.1, 12.2, 12.4 and 12.5 pass, and the QA fix is in.
 
 **Verify:** `main` has a working app, and a fresh clone + setup steps + `runserver` gives a working demo.
 
@@ -534,23 +534,46 @@ The 44 walkthrough checks:
 
 **QA finding (not fixed; no new features in this phase):** `send_message` checks that the billing account is active and has credit, but does **not** re-check that the user is still a member. If an admin removes a user from a *shared* account, that user's existing sessions can still charge it. The MVP demo is unaffected (personal accounts only). It's a small follow-up fix if wanted.
 
+**QA finding fixed (user-approved, 2026-09-29):** `chat.views.send_message` now re-checks membership before the credit check and the proxy call. A removed member gets **403** with "You are no longer a member of …", the draft is kept, and there's no proxy call and no charge. History stays readable. 4 tests were added (`BillingMembershipTests`). Full suite 158/158 pass. Commit `07e2803`.
+
 ---
 
 ## Phase 13: Sync docs
 *Depends on: 12.*
 
-- [ ] 13.1 `README.md`: what the project is, setup (venv, `pip install -r requirements.txt`, `.env` from `.env.example`, `migrate`, `seed_demo`, `runserver`), how to run the tests, and links to `doc/`.
-- [ ] 13.2 `doc/wiki/architecture.md`: the apps (`billing`, `llm`, `chat`), the models, the request flow (send → credit check → adapter → proxy → atomic save + charge), and the routes.
-- [ ] 13.3 `doc/wiki/billing-and-models.md`:
+- [x] 13.1 `README.md`: what the project is, setup (venv, `pip install -r requirements.txt`, `.env` from `.env.example`, `migrate`, `seed_demo`, `runserver`), how to run the tests, and links to `doc/`.
+- [x] 13.2 `doc/wiki/architecture.md`: the apps (`billing`, `llm`, `chat`), the models, the request flow (send → credit check → adapter → proxy → atomic save + charge), and the routes.
+- [x] 13.3 `doc/wiki/billing-and-models.md`:
   - Pricing per model (ours, D3) and the cost formula.
   - The charge-on-success policy and possible final overdraft (D4).
   - Admin top-ups.
   - Proxy caveats: 3 models only, all DeepSeek Flash, ~175 hidden prompt tokens per request, latency.
-- [ ] 13.4 `doc/wiki/README.md`: an index of the wiki pages.
-- [ ] 13.5 Note in this plan any deviations made during execution.
-- [ ] 13.6 Commit on `main`: `docs: add wiki and README for LiteChat MVP`.
+- [x] 13.4 `doc/wiki/README.md`: an index of the wiki pages.
+- [x] 13.5 Note in this plan any deviations made during execution.
+- [x] 13.6 Commit: `docs: add wiki and README for LiteChat MVP` (`e25a78a`).
+  - *Deviation:* committed on `feat/litechat-mvp` **before** the merge, at the user's request (docs, then merge), so it reaches `main` through the merge rather than as a commit on `main`.
 
 **Verify:** the docs describe the code as it actually is, and the setup steps work when followed literally.
+
+**Result (2026-09-29):**
+- **Docs match the code:** no broken relative links. The timeout and max tokens match settings, all 3 catalog rows match the DB, and all documented routes resolve.
+- **Setup works literally:** in a fresh clone following the README (placeholder keys), `pip install`, `cp .env.example .env`, `migrate` (3 models), `seed_demo` ($2.00 [Personal]), `runserver` (`/` → `/chat/`, `/login/` 200, `/admin/login/` 200), `test` 158/158, `check` clean, `makemigrations --check` clean, and `git status` clean.
+
+**Deviations recorded during execution (13.5):**
+- **1.1** `requests` moved to 4b.0.
+- **1.2** App `tests.py` stubs removed. The generated `SECRET_KEY` was removed before the first commit.
+- **1.6** Auth views were wired in 2.1.
+- **2.4 / 5.3** Minimal placeholder views were added early (`/chat/` home, session page) so that redirects had targets.
+- **2.5** Redirect tests for pages not yet built moved to 3.6 and 5.5.
+- **3.3** `seed_demo` prompts for the password when `--password` is omitted. 3.5 (sidebar balance) skipped.
+- **4b** Test bug exposed the real keys in a transcript. Fixed in the tests; keys must be reissued; **4b.10 on hold**.
+- **6 / 7 / 11 / 12.3** Browser-level checks used a local fake proxy, not the real one.
+- **7.6** Per-message cost line skipped (stretch).
+- **8–10** Django flash messages added to the layout. Delete links are also on sidebar items. Renaming doesn't reorder.
+- **11** Messages stay in `ProviderError.DEFAULT_MESSAGES` (not duplicated in the view). The debug-page key leak with DEBUG on was fixed (`sensitive_variables()` + `AlwaysSafeExceptionReporterFilter`).
+- **12** QA finding (membership re-check) fixed.
+- **12.6** Merged with the real-proxy part of 12.3 still pending, at the user's explicit approval.
+- **13.6** Docs were committed on the branch before the merge.
 
 ---
 
