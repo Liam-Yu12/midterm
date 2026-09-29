@@ -169,3 +169,7 @@ input[type="text"], input[type="password"], textarea, select {
 .confirm-actions { display: flex; gap: 10px; }
 .btn-danger { background: #d92d20; color: #fff; }
 .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+
+/* --- Sign-up --- */
+.auth-switch { text-align: center; margin-top: 16px; color: var(--muted); }
+.field-help { margin: 0; font-size: 0.8rem; }
