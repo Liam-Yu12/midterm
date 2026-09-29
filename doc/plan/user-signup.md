@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29
 - **Goal:** anyone evaluating the app, such as the instructor, can create an account in the browser and start chatting with $2.00 credit, with no terminal command.
 - **Out of scope:** Google login, email/verification, password reset, CAPTCHA and rate limiting (study §5).
-- **Status:** executed (approved 2026-09-29). See the results under each step.
+- **Status:** complete and merged to `main` (2026-09-29).
 
 ## Decisions
 
@@ -72,16 +72,18 @@
       - A new conversation got a reply. The balance went 2.00 → 1.999910 with 1 charge.
       - Logout, then login again → the session is still listed. No server errors.
     - 3.3: no secrets in tracked files or 35 commits, and `.env` is untracked. The diff has 10 files, all in plan scope, with no debug leftovers.
-- [ ] 3.4 Merge `feat/signup` into `main` (`--no-ff`). The full suite passes on `main`.
+- [x] 3.4 Merge `feat/signup` into `main` (`--no-ff`). The full suite passes on `main`.
+  - *Result:* merge commit `5df315f`. 172/172 tests pass on `main`.
 
 ### 4. Sync docs
 *Depends on: 3.*
-- [ ] 4.1 `README.md`:
+- [x] 4.1 `README.md`:
   - "Create an account at `/signup/`" is the primary way in; `seed_demo` becomes an alternative.
   - Document `LITECHAT_SIGNUP_CREDIT` and the local-only abuse note.
   - Remove sign-up from the "not included" list.
-- [ ] 4.2 `doc/wiki/architecture.md`: the `/signup/` route and flow. `doc/wiki/billing-and-models.md`: accounts are created on sign-up with the starting credit.
-- [ ] 4.3 Tick this plan, record any deviations, and commit: `docs: document user sign-up`.
+- [x] 4.2 `doc/wiki/architecture.md`: the `/signup/` route and flow. `doc/wiki/billing-and-models.md`: accounts are created on sign-up with the starting credit.
+- [x] 4.3 Tick this plan, record any deviations, and commit: `docs: document user sign-up`.
+  - *Deviations:* none in behaviour. The docs were committed on `main` after the merge, as the plan's order puts Sync docs after the merge. Relative links were checked.
 
 ## Time estimate
 About 45–60 minutes in total.

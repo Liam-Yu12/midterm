@@ -6,7 +6,7 @@ A Django 5.2 project (`litechat`) with three apps. Pages are server-rendered. Th
 
 | App | Responsibility | Key files |
 |---|---|---|
-| `billing` | Billing accounts and credit, pricing and charging replies, profile page, demo seeding | `models.py`, `services.py`, `views.py`, `management/commands/seed_demo.py`, `templatetags/money.py` |
+| `billing` | Billing accounts and credit, pricing and charging replies, sign-up and profile pages, demo seeding | `models.py`, `services.py`, `views.py`, `management/commands/seed_demo.py`, `templatetags/money.py` |
 | `llm` | The model catalog, and adapters that talk to the BUILD LLM Proxy's three provider interfaces | `models.py`, `migrations/0002_seed_models.py`, `providers.py` |
 | `chat` | Chat sessions and messages, sending a message, the session sidebar, rename and delete | `models.py`, `services.py`, `views.py`, `forms.py`, `context_processors.py` |
 | `litechat` | Settings, URLs, and the exception-report filter that hides secrets | `settings.py`, `urls.py`, `debug.py` |
@@ -92,6 +92,7 @@ Failures raise `ProviderError(kind)`:
 |---|---|---|---|
 | `/` | GET | redirect | → `/chat/` |
 | `/login/`, `/logout/` | GET/POST, POST | Django `LoginView` / `LogoutView` | Logged-in users visiting `/login/` go to `/chat/`. Logout is POST only. |
+| `/signup/` | GET/POST | `billing.views.signup` | Public. Django's `UserCreationForm`. In one transaction it creates the user and `ensure_personal_account(user, LITECHAT_SIGNUP_CREDIT)`, then logs in → `/chat/`. Logged-in users go to `/chat/`. |
 | `/chat/` | GET | `chat.views.home` | "Start a New Conversation" empty state |
 | `/chat/new/` | GET/POST | `chat.views.new_session` | Picker: the user's active billing accounts and the active models, grouped by provider |
 | `/chat/<id>/` | GET | `chat.views.session_detail` | History and message form (owner only) |
@@ -101,6 +102,6 @@ Failures raise `ProviderError(kind)`:
 | `/profile/` | GET | `billing.views.profile` | User info, billing accounts and available credit |
 | `/admin/` | – | Django admin | Accounts (credit top-ups), usage charges (read-only), models |
 
-Every page except login requires login. Sessions are always looked up with `user=request.user`, so other users' sessions return 404.
+Every page except login and sign-up requires login. Sessions are always looked up with `user=request.user`, so other users' sessions return 404.
 
 The sidebar session list comes from the `chat.context_processors.sidebar_sessions` context processor.

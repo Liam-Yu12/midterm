@@ -46,7 +46,9 @@ Each charge is recorded as a `UsageCharge` row with the account, model, token co
 
 ## Accounts and top-ups
 
+- **Sign-up** (`/signup/`) gives every new user an active **[Personal]** account (named after the username, in capitals) holding `LITECHAT_SIGNUP_CREDIT` (settings; default **$2.00**, and `0` means admins must top up first).
 - `python manage.py seed_demo --username U [--password P] [--credit 2.00]` creates or updates a user with an active **[Personal]** account. Re-running it resets the credit and reactivates the account.
+- Both use `billing.services.ensure_personal_account(user, credit)`, which creates the personal account if missing, or reactivates it and resets its credit.
 - **Top-ups:** in the admin, go to **Billing accounts** → an account → edit **Credit**. There is no payment flow.
 - **Shared accounts:** set **Kind** to Shared and add several **Members**. Every member can start sessions on it, and they all draw from one balance.
 - **Suspending:** set **Status** to Suspended. The account disappears from the picker, and existing sessions on it can't send.

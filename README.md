@@ -1,6 +1,6 @@
 # LiteChat MVP
 
-A replication of the core of [LiteChat](https://litechat.ai) for the ITENT 45 midterm: **metered, à la carte access to LLMs from several providers.** Users log in and start a conversation by picking a billing account and a model (OpenAI, Anthropic or Google). They chat through the course's BUILD LLM Proxy, and each reply's token usage is priced and deducted from their dollar credit.
+A replication of the core of [LiteChat](https://litechat.ai) for the ITENT 45 midterm: **metered, à la carte access to LLMs from several providers.** Users sign up (or log in) and start a conversation by picking a billing account and a model (OpenAI, Anthropic or Google). They chat through the course's BUILD LLM Proxy, and each reply's token usage is priced and deducted from their dollar credit.
 
 - **Stack:** Python 3.13, Django 5.2, SQLite, server-rendered templates with a little vanilla JS, `requests` for the proxy calls.
 - **Scope:** the study explains why these features count as "core", and the plan lists what was built and in what order:
@@ -10,6 +10,7 @@ A replication of the core of [LiteChat](https://litechat.ai) for the ITENT 45 mi
 
 ## What it does
 
+- **Sign up** at `/signup/`: every new user gets an active **[Personal]** billing account with **$2.00** of credit and is logged straight in.
 - Username/password login and logout. Every app page requires login.
 - Billing accounts with dollar credit, shown on **My Profile**. Admins top up credit in the Django admin.
 - **New conversation:** choose a billing account and one of three models, grouped by provider, with tier and price.
@@ -21,7 +22,7 @@ A replication of the core of [LiteChat](https://litechat.ai) for the ITENT 45 mi
 - A sidebar of sessions (most recently used first) with rename and delete. Deleting a session keeps its billing records.
 - Friendly errors for proxy failures (401/403, 429, 400, 5xx, timeout, connection). The draft is kept, and no key or upstream detail is shown.
 
-Deliberately **not** included in the MVP (see plan §14): Google login, sign-up, memories, global system prompt, streaming, tools, file uploads, web search, SimGen, and a large model catalog.
+Deliberately **not** included (see plan §14 and [doc/study/user-signup.md](doc/study/user-signup.md)): Google login, memories, global system prompt, streaming, tools, file uploads, web search, SimGen, and a large model catalog.
 
 ## Prerequisites
 
@@ -55,6 +56,8 @@ cp .env.example .env
 | `DJANGO_SECRET_KEY` | A random secret. Generate one with `python -c "from django.core.management.utils import get_random_secret_key as k; print(k())"` |
 | `DJANGO_DEBUG` | `True` for local development |
 
+The credit given to new sign-ups is set in `litechat/settings.py` (`LITECHAT_SIGNUP_CREDIT`, default `Decimal('2.00')`). Anyone who can reach the server can sign up and spend that credit on your proxy keys. The app is meant to run locally; set it to `Decimal('0')` if others can reach it, so that new users need an admin top-up.
+
 The keys are only read on the server, when a request is made. They never reach the browser, logs, or error pages.
 
 ### Database
@@ -65,7 +68,7 @@ python manage.py migrate
 
 This creates `db.sqlite3` (git-ignored) and seeds the three models the proxy supports: GPT-5.6 Luna, Claude Haiku 4.5 and Gemini 3.8 Flash.
 
-Next, create a demo user. They get an active **[Personal]** billing account with **$2.00** credit. Leave out `--password` to be prompted for it, which keeps it out of your shell history:
+Users can create their own accounts in the browser (see **Run**). If you'd rather create one from the terminal, `seed_demo` does the same thing: an active **[Personal]** billing account with **$2.00** credit. Leave out `--password` to be prompted for it, which keeps it out of your shell history:
 
 ```bash
 python manage.py seed_demo --username demo
@@ -84,7 +87,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-- App: <http://127.0.0.1:8000/>. Log in with the demo user.
+- App: <http://127.0.0.1:8000/>. Click **Create one** on the login page to sign up (username without spaces, password of 8+ characters), or log in with a user created by `seed_demo`.
 - Admin: <http://127.0.0.1:8000/admin/>. Billing accounts (edit `credit` to top up), usage charges (read-only), and the model catalog.
 
 Replies aren't streamed. The proxy can take up to about 30 s, and the send button shows "Thinking…" while you wait.
@@ -95,7 +98,7 @@ Replies aren't streamed. The proxy can take up to about 30 s, and the send butto
 python manage.py test
 ```
 
-- 158 tests covering the settings, auth, billing and metering, the model catalog, the provider adapters, chat, sessions, and error handling.
+- 172 tests covering the settings, auth, sign-up, billing and metering, the model catalog, the provider adapters, chat, sessions, and error handling.
 - **The proxy is always mocked.** No test makes a network call or needs real keys, and the adapter tests replace any keys with dummies.
 - Useful checks before committing:
 
@@ -114,7 +117,7 @@ Everything above has been verified locally. Verification used the automated suit
 
 ```
 litechat/   settings, URLs, error-report filter (keys hidden from debug pages)
-billing/    BillingAccount, UsageCharge, metering services, profile page, seed_demo
+billing/    BillingAccount, UsageCharge, account + metering services, sign-up and profile pages, seed_demo
 llm/        LLMModel catalog (+ seed migration) and the proxy adapters (llm/providers.py)
 chat/       ChatSession, Message, the chat/session views and send service
 templates/  app layout, login, chat pages, profile
