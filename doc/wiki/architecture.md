@@ -8,7 +8,7 @@ A Django 5.2 project (`litechat`) with three apps. Pages are server-rendered. Th
 |---|---|---|
 | `billing` | Billing accounts and credit, pricing and charging replies, sign-up and profile pages, demo seeding | `models.py`, `services.py`, `views.py`, `management/commands/seed_demo.py`, `templatetags/money.py` |
 | `llm` | The model catalog, and adapters that talk to the BUILD LLM Proxy's three provider interfaces | `models.py`, `migrations/0002_seed_models.py`, `providers.py` |
-| `chat` | Chat sessions and messages, sending a message, the session sidebar, rename and delete | `models.py`, `services.py`, `views.py`, `forms.py`, `context_processors.py` |
+| `chat` | Chat sessions and messages, sending a message, automatic session naming, the session sidebar, rename and delete | `models.py`, `services.py`, `naming.py`, `views.py`, `forms.py`, `context_processors.py` |
 | `litechat` | Settings, URLs, and the exception-report filter that hides secrets | `settings.py`, `urls.py`, `debug.py` |
 
 ## Data model
@@ -20,7 +20,7 @@ User (django.contrib.auth)
 BillingAccount ── name, kind (personal/shared), status (active/suspended), credit (Decimal, 6 dp)
   ▲ PROTECT                                  ▲ PROTECT
   │                                          │
-ChatSession ── user, billing_account, llm_model, name ("Untitled session"), created_at, updated_at
+ChatSession ── user, billing_account, llm_model, name ("Untitled session"), name_set_by_user, created_at, updated_at
   │ CASCADE                                  │ PROTECT
   ▼                                          ▼
 Message ── role (user/assistant), content,   LLMModel ── provider, api_model, display_name,
@@ -33,6 +33,7 @@ UsageCharge ── billing_account, message, session_label (snapshot), llm_model
 
 - A session's billing account and model are **fixed when it's created**.
 - The sidebar is ordered by `updated_at`, which only a successful send changes. Renaming doesn't.
+- `name_set_by_user` becomes true when the user renames the session. Automatic naming never overwrites such a name (see [Session naming](#session-naming)).
 - Deleting a session deletes its messages. Each `UsageCharge` keeps its `session_label`, and its `message` link becomes `NULL`, so billing history survives.
 
 ## Sending a message
@@ -48,12 +49,57 @@ UsageCharge ── billing_account, message, session_label (snapshot), llm_model
    1. create the user message
    2. create the assistant message
    3. `billing.services.record_charge`: lock the account row, then `credit = F('credit') - cost`, set `Message.cost`, and create the `UsageCharge`
-   4. bump `session.updated_at`
+   4. bump `session.updated_at`, and on the first successful exchange give an untitled session its automatic name (see [Session naming](#session-naming))
 
    If any step fails, everything rolls back.
 7. Redirect back to the session (POST-redirect-GET).
 
 If a step fails before step 6, nothing is saved or charged. The page is re-rendered with a friendly error and the user's draft.
+
+## Session naming
+
+New sessions are called **"Untitled session"** (`ChatSession.DEFAULT_NAME`).
+
+**When a session is named automatically.** Inside step 6 of *Sending a message*, a session gets a name derived from the user's message only if **all** of these hold:
+- this is the session's **first successful exchange** (it had no stored messages before)
+- `name_set_by_user` is false
+- the name is still "Untitled session"
+
+Because this happens in the same transaction as saving the messages:
+- A failed send, or one refused before the proxy call (no credit, account not active, not a member), never renames.
+- If the first attempt fails, the first *successful* message names the session.
+- Later messages never rename.
+- A name the user chose, by renaming at any time (even to "Untitled session"), is never overwritten.
+- Admins can also give a session a non-default name, which is kept.
+
+**How the name is made** (`chat.naming.suggest_session_name`). It is generated **locally**, with **no AI or proxy call**, and the message text itself is not changed:
+
+1. Collapse all whitespace.
+2. Remove a leading greeting ("hi", "hey", "hello", "good morning", …) if anything follows it.
+3. Keep the **first sentence**. The text is cut at the first `.`, `!`, `?` or `:` followed by a space.
+4. Remove leading **filler phrases**, repeatedly, as long as something remains. Examples: "what are some", "what is", "help me", "can you", "could you", "tell me about", "how do I", "I want to", "please".
+5. Drop low-information words (a, an, the, my, some, good, really, just, me, please, …). The user's own first word is kept unless a filler phrase was removed before it.
+6. Keep at most **6 words**, and remove trailing connector words ("to", "for", "and", "of", "that", "whether", …).
+7. Capitalise the first letter **only if** a filler phrase was removed, so "hello" stays "hello".
+8. Limit the result to **60 characters**, cut at a word boundary with "…" (a single very long word is cut to 59 characters + "…").
+
+Fallbacks:
+- If nothing useful is left after these steps, the raw first 6 words of the message are used.
+- If the message has no letters or digits at all (e.g. "???"), the name stays **"Untitled session"**.
+
+Examples:
+
+| First message | Session name |
+|---|---|
+| What are some good study techniques for biology? | Study techniques for biology |
+| Help me plan my trip to Japan next month | Plan trip to Japan next month |
+| hello | hello |
+| My name is Hans. | My name is Hans |
+| ??? | Untitled session |
+
+The word order is never changed, so the name is a trimmed version of what the user wrote, not a summary.
+
+**Charge labels:** `UsageCharge.session_label` is a snapshot taken when the charge is recorded, which happens before the name is set in the same transaction. So the **first** charge of an auto-named session is labelled with "Untitled session", and later charges use the new name.
 
 ## Provider adapters (`llm/providers.py`)
 
@@ -97,7 +143,7 @@ Failures raise `ProviderError(kind)`:
 | `/chat/new/` | GET/POST | `chat.views.new_session` | Picker: the user's active billing accounts and the active models, grouped by provider |
 | `/chat/<id>/` | GET | `chat.views.session_detail` | History and message form (owner only) |
 | `/chat/<id>/send/` | POST | `chat.views.send_message` | See "Sending a message" |
-| `/chat/<id>/rename/` | POST | `chat.views.rename_session` | Trimmed, cut to 100 chars, blank rejected |
+| `/chat/<id>/rename/` | POST | `chat.views.rename_session` | Trimmed, cut to 100 chars, blank rejected. A successful rename sets `name_set_by_user`. The ✎ control sits next to 🗑 in the session header and opens as a dropdown. |
 | `/chat/<id>/delete/` | GET/POST | `chat.views.delete_session` | Confirmation page, then delete → `/chat/` |
 | `/profile/` | GET | `billing.views.profile` | User info, billing accounts and available credit |
 | `/admin/` | – | Django admin | Accounts (credit top-ups), usage charges (read-only), models |

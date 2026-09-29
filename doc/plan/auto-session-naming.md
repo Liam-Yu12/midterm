@@ -49,4 +49,7 @@
   - "What are some good study techniques for biology?" → "Study techniques for biology" (exact).
   - "hello" → "hello" (exact).
   - "Help me plan my trip to Japan next month" → "Plan trip to Japan next month". The spec's "Plan Japan trip" needs word reordering, which a local rule can't do reliably; recorded as a known difference.
-- [ ] 9. After approval and merge: sync `doc/wiki/architecture.md` (naming rule, new field).
+- [x] 9. Sync `doc/wiki/architecture.md` (naming rule, new field).
+  - *Deviation:* done on the feature branch **before** the merge, at the student's request (2026-09-29).
+  - *Result:* new "Session naming" section (conditions, the local heuristic step by step, fallbacks, examples, charge-label timing), plus updated apps table, data model, send flow and rename route. Index line updated in `doc/wiki/README.md`.
+  - The charge-label timing was checked on a throwaway DB: the first charge is labelled "#4 Untitled session" and the next one "#4 Study techniques for biology".
