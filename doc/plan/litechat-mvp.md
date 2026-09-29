@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29. **Deadline: today.**
 - **Goal:** a working Django app that demonstrates LiteChat's core: *metered, a la carte access to LLMs from various providers*. Users log in, choose a billing account and one of three provider models, chat through the course proxy, and pay per token from their credit.
 - **Not the goal:** a full clone. Section 14 lists what is deliberately excluded.
-- **Status:** Phases 0–3 complete. Phase 4 is next. Tick items as they are completed.
+- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phase 6 is next. Tick items as they are completed.
 
 ---
 
@@ -185,83 +185,95 @@ Tests are written **inside each phase**, not saved for the end. Phase 12 runs th
 ## Phase 4: Model catalog (the 3 proxy models)
 *Depends on: 1.*
 
-- [ ] 4.1 `llm/models.py` `LLMModel` with these fields:
+- [x] 4.1 `llm/models.py` `LLMModel` with these fields:
   - `provider` (`openai`/`anthropic`/`google`)
   - `api_model` (unique)
   - `display_name`, `description`
   - `tier` (`value`/`standard`/`premium`)
   - `input_price_per_mtok`, `output_price_per_mtok` (Decimal)
   - `is_active`, `sort_order`
-- [ ] 4.2 A data migration `llm/migrations/000X_seed_models.py` seeds the three rows from D3:
+- [x] 4.2 A data migration `llm/migrations/000X_seed_models.py` seeds the three rows from D3:
   - `gpt-5.6-luna`: "GPT-5.6 Luna", openai
   - `claude-haiku-4-5-20251001`: "Claude Haiku 4.5", anthropic
   - `gemini-3.8-flash`: "Gemini 3.8 Flash", google
   - Each gets a one-line description and tier Value.
-- [ ] 4.3 `llm/admin.py`: register `LLMModel`.
-- [ ] 4.4 Tests in `llm/tests/test_catalog.py`: after migrations, exactly the 3 active models exist, with the correct provider and model ID pairs and prices greater than 0.
-- [ ] 4.5 Commit: `feat: add model catalog with three proxy models`.
+- [x] 4.3 `llm/admin.py`: register `LLMModel`.
+- [x] 4.4 Tests in `llm/tests/test_catalog.py`: after migrations, exactly the 3 active models exist, with the correct provider and model ID pairs and prices greater than 0.
+- [x] 4.5 Commit: `feat: add model catalog with three proxy models`.
 
 **Verify:** the admin lists the 3 models with tiers and prices.
+
+**Result (2026-09-29):** migrations `llm/0001_initial` and `0002_seed_models` (reversible). Catalog tests 6/6 pass, including the admin list. Commit `a192881`. The unused `llm/views.py` stub was removed.
 
 ## Phase 4b: Provider adapters (proxy client)
 *Depends on: 4. Can be done alongside 3 and 5.*
 
-- [ ] 4b.0 Add `requests` to `requirements.txt` and install it (moved here from 1.1).
-- [ ] 4b.1 `llm/providers.py`:
+- [x] 4b.0 Add `requests` to `requirements.txt` and install it (moved here from 1.1).
+- [x] 4b.1 `llm/providers.py`:
   - `Turn(role: "user"|"assistant", content: str)`
   - `CompletionResult(text, status: "complete"|"truncated", input_tokens, output_tokens)`
   - `ProviderError(kind, user_message)` with kinds `auth`, `rate_limited`, `bad_request`, `upstream`, `timeout`, `bad_response`
-- [ ] 4b.2 `complete(llm_model, turns, system_prompt=None) -> CompletionResult` dispatches on `llm_model.provider`.
-- [ ] 4b.3 `_openai`: `POST {base}/openai/v1/chat/completions` with header `Authorization: Bearer $BUILD_OPENAI_KEY` and body `{model, messages, max_tokens, reasoning_effort:"none"}`.
+- [x] 4b.2 `complete(llm_model, turns, system_prompt=None) -> CompletionResult` dispatches on `llm_model.provider`.
+- [x] 4b.3 `_openai`: `POST {base}/openai/v1/chat/completions` with header `Authorization: Bearer $BUILD_OPENAI_KEY` and body `{model, messages, max_tokens, reasoning_effort:"none"}`.
   - Parse `choices[0].message.content`, `finish_reason` (`length` → truncated) and `usage.prompt_tokens/completion_tokens`.
-- [ ] 4b.4 `_anthropic`: `POST {base}/anthropic/v1/messages` with headers `x-api-key` and `anthropic-version: 2023-06-01`, and body `{model, messages, max_tokens, thinking:{type:"disabled"}}` (+ `system`).
+- [x] 4b.4 `_anthropic`: `POST {base}/anthropic/v1/messages` with headers `x-api-key` and `anthropic-version: 2023-06-01`, and body `{model, messages, max_tokens, thinking:{type:"disabled"}}` (+ `system`).
   - Join the `text` blocks. Parse `stop_reason` (`max_tokens` → truncated) and `usage.input_tokens/output_tokens`.
-- [ ] 4b.5 `_google`: `POST {base}/google/v1beta/models/{api_model}:generateContent` with header `x-goog-api-key`.
+- [x] 4b.5 `_google`: `POST {base}/google/v1beta/models/{api_model}:generateContent` with header `x-goog-api-key`.
   - Roles map `assistant` → `model`, and text goes in `parts`.
   - Body includes `generationConfig{maxOutputTokens, thinkingConfig{thinkingBudget:0}}` (+ `systemInstruction`).
   - Join the `parts[].text`. Parse `finishReason` (`MAX_TOKENS` → truncated) and `usageMetadata.promptTokenCount/candidatesTokenCount`.
-- [ ] 4b.6 Error handling:
+- [x] 4b.6 Error handling:
   - Map HTTP status to kind: 401/403 → `auth`, 429 → `rate_limited`, 400 → `bad_request`, 5xx → `upstream`. `requests.Timeout` and `ConnectionError` → `timeout`/`upstream`. Missing fields → `bad_response`.
   - **No automatic retries.**
   - **Never include keys or request headers in exceptions or logs.**
-- [ ] 4b.7 Keys are read from `os.environ` at call time. A missing key raises `ProviderError("auth", …)`.
-- [ ] 4b.8 Fixtures in `llm/tests/fixtures/`: `openai_ok.json`, `anthropic_ok.json`, `google_ok.json`, `openai_length.json`, `openai_error_401.json`, `openai_error_400.json`. They are based on the study's live responses and contain **no keys**.
-- [ ] 4b.9 Tests in `llm/tests/test_providers.py`, with `requests.post` mocked and dummy env keys:
+- [x] 4b.7 Keys are read from `os.environ` at call time. A missing key raises `ProviderError("auth", …)`.
+- [x] 4b.8 Fixtures in `llm/tests/fixtures/`: `openai_ok.json`, `anthropic_ok.json`, `google_ok.json`, `openai_length.json`, `openai_error_401.json`, `openai_error_400.json`. They are based on the study's live responses and contain **no keys**.
+- [x] 4b.9 Tests in `llm/tests/test_providers.py`, with `requests.post` mocked and dummy env keys:
   - For each provider: the correct URL, the correct auth header *name*, and a request body with the history, system prompt, `max_tokens` and reasoning disabled.
   - For each provider: text and token parsing works.
   - Truncation is detected.
   - 401 → `auth`, 429 → `rate_limited`, 500 → `upstream`, timeout → `timeout`, malformed JSON → `bad_response`.
   - Gemini maps `assistant` to `model`.
-- [ ] 4b.10 Manual smoke test from `python manage.py shell`: one `complete()` per provider against the real proxy. Record the result, but **not keys**.
-- [ ] 4b.11 Commit: `feat: add provider adapters for OpenAI, Anthropic and Gemini proxy interfaces`.
+- [ ] 4b.10 **(ON HOLD: wait for reissued keys)** Manual smoke test from `python manage.py shell`: one `complete()` per provider against the real proxy. Record the result, but **not keys**.
+- [x] 4b.11 Commit: `feat: add provider adapters for OpenAI, Anthropic and Gemini proxy interfaces`.
 
 **Verify:** all adapter tests pass without network access. The manual smoke test returns text and token counts for all three providers.
+
+**Result so far (2026-09-29):** `llm` tests 35/35 pass offline, including a run with sockets blocked (0 connection attempts). Commit `91399a2`.
+
+**Incident:** the first test run printed the real proxy keys in failure output. A class-level `mock.patch.dict` didn't apply to subclass tests, so the real keys loaded from `.env` were used. No request was sent, and nothing was written to files or git. **Fixes:** dummy keys are patched in `setUp` (`DummyKeysMixin`); header assertions never echo values; tests run with placeholder `BUILD_*_KEY` env vars and output passes through a redaction filter. **Follow-up:** the keys must be reissued by the proxy admin, and must not be used for live calls until then.
+
+`openai_length.json` is the recorded OK response with `finish_reason` set to `length` (no real truncated response was captured). A Gemini `SAFETY` finish is treated as `complete`, since the plan defines only complete and truncated.
 
 ---
 
 ## Phase 5: New conversation (billing account + model selection)
 *Depends on: 2, 3, 4.*
 
-- [ ] 5.1 `chat/models.py`:
+- [x] 5.1 `chat/models.py`:
   - `ChatSession` with `user` (FK), `billing_account` (FK, PROTECT), `llm_model` (FK, PROTECT), `name` (default `"Untitled session"`), `created_at` and `updated_at`, ordered by `-updated_at`.
   - `Message` with `session` (FK, CASCADE), `role` (`user`/`assistant`), `content`, `status` (`complete`/`truncated`), `input_tokens`, `output_tokens`, `cost` (nullable, used for assistant messages) and `created_at`, ordered by `created_at`.
-- [ ] 5.2 `chat/forms.py` `NewSessionForm`:
+- [x] 5.2 `chat/forms.py` `NewSessionForm`:
   - `billing_account` is limited to the user's **active** accounts.
   - `llm_model` is limited to active models.
-- [ ] 5.3 `chat.views.new_session` + `templates/chat/new_session.html` ("Select a Model"):
+- [x] 5.3 `chat.views.new_session` + `templates/chat/new_session.html` ("Select a Model"):
   - A **Billing account** dropdown with the help text "Costs for this session will be charged to the selected account."
   - Models **grouped by provider** as cards (radio buttons) with display name, description and a tier badge. Prices are shown as a small line under each card.
   - Submitting creates the session and redirects to `/chat/<id>/`.
-- [ ] 5.4 `chat.views.home` + `templates/chat/home.html`: a "Start a New Conversation" empty state with a big **+** that links to `/chat/new/`.
-- [ ] 5.5 Tests in `chat/tests/test_new_session.py`:
+- [x] 5.4 `chat.views.home` + `templates/chat/home.html`: a "Start a New Conversation" empty state with a big **+** that links to `/chat/new/`.
+- [x] 5.5 Tests in `chat/tests/test_new_session.py`:
   - GET lists only the user's active accounts and the 3 models.
   - A valid POST creates a session named "Untitled session" with the chosen account and model, and redirects.
   - Choosing another user's account, or a suspended account, is rejected.
   - A user with no active account sees a clear message.
   - Anonymous `GET /chat/new/` redirects to login (add to `PROTECTED_URLS`; moved from 2.5).
-- [ ] 5.6 Commit: `feat: add new conversation with billing account and model selection`.
+- [x] 5.6 Commit: `feat: add new conversation with billing account and model selection`.
 
 **Verify:** in the browser, + leads to the picker, and choosing an account and model opens an empty session page showing the model and account.
+
+*Deviation:* a minimal `chat.views.session_detail` (`/chat/<id>/`, `templates/chat/session_detail.html`) was added so that 5.3's redirect has a target. It is owner-scoped (404 for others), shows the name, model, billing account and a "No messages yet" list, and has **no message form**. Phase 6.3 adds messaging to it. The view passes messages as `chat_messages`, to avoid clashing with Django's `messages` framework.
+
+**Result (2026-09-29):** migration `chat/0001_initial` (ChatSession, Message). `chat` tests 23/23 pass. Full suite 82/82 pass (run with placeholder keys). Manual run on `runserver` with a temporary user (deleted afterwards): `/chat/` shows the empty state with + → `/chat/new/`. The picker lists OpenAI, Anthropic and Google groups, `[Personal] …` and 3 × "Value tier". POST → 302 `/chat/1/`, which shows "Untitled session", "Model: Gemini 3.8 Flash", the billing account, and "No messages yet." No proxy calls were made.
 
 ---
 
