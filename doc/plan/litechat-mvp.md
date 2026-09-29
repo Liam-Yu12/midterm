@@ -492,7 +492,8 @@ The verify step was done against the **local fake proxy** (the real keys must no
   - `git ls-files` doesn't include `.env` or `db.sqlite3`.
   - No key is in any template or static file.
 - [x] 12.5 Quick review of the diff for leftover debug code and unrelated changes.
-- [ ] 12.6 Tick this checklist, then merge `feat/litechat-mvp` into `main` (`git merge --no-ff`) **only if 12.1–12.4 pass**.
+- [x] 12.6 Tick this checklist, then merge `feat/litechat-mvp` into `main` (`git merge --no-ff`) **only if 12.1–12.4 pass**.
+  - **Merged (2026-09-29):** merge commit `22e552a` (`--no-ff`). On `main`: `python manage.py test` 158/158 pass (network blocked, 0 connection attempts), `check` clean, `makemigrations --check` clean. Secret scan: 84 tracked files and 31 commits hold no keys, and `.env` is untracked.
   - **Approved by the user (2026-09-29)** to merge with the real-proxy part of 12.3 still on hold. Local checks 12.1, 12.2, 12.4 and 12.5 pass, and the QA fix is in.
 
 **Verify:** `main` has a working app, and a fresh clone + setup steps + `runserver` gives a working demo.
