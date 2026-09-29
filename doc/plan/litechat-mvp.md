@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29. **Deadline: today.**
 - **Goal:** a working Django app that demonstrates LiteChat's core: *metered, a la carte access to LLMs from various providers*. Users log in, choose a billing account and one of three provider models, chat through the course proxy, and pay per token from their credit.
 - **Not the goal:** a full clone. Section 14 lists what is deliberately excluded.
-- **Status:** Phase 0 in progress. Tick items as they are completed.
+- **Status:** Phase 0 complete. Phase 1 is next. Tick items as they are completed.
 
 ---
 
@@ -93,7 +93,7 @@ Tests are written **inside each phase**, not saved for the end. Phase 12 runs th
 - [x] 0.2 Commit the documentation structure and env template: `chore: set up docs structure and env template` (`.gitignore`, `.env.example`, `doc/*/README.md`).
 - [x] 0.3 Commit the study: `docs: add LiteChat core functionality study`.
 - [x] 0.4 Commit this plan: `docs: add LiteChat MVP implementation plan`.
-- [ ] 0.5 Create the branch `feat/litechat-mvp` from `main`.
+- [x] 0.5 Create the branch `feat/litechat-mvp` from `main`. It was created from `main` at `f8f4bfe`. The student ran the Phase 0 git commands by hand while the agent's shell permission check was failing.
 
 **Verify:** `git status` is clean. `git log` shows conventional commits. `git ls-files` **does not** include `.env`.
 
