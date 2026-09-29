@@ -257,6 +257,15 @@ class SessionPageTests(MockedProviderTestCase):
         self.assertContains(response, '/static/js/chat.js')
         self.assertContains(response, 'Model: GPT-5.6 Luna')
 
+    def test_only_the_session_page_uses_the_chat_layout(self):
+        # app-chat gives the session page its fixed-height layout (composer at the bottom).
+        self.assertContains(self.client.get(self.url), '<div class="app app-chat">')
+        for url in ('/chat/', '/chat/new/', '/profile/'):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertContains(response, '<div class="app">')
+                self.assertNotContains(response, 'app-chat')
+
     def test_history_is_rendered_in_order(self):
         for role, content in [('user', 'first'), ('assistant', 'second'), ('user', 'third')]:
             Message.objects.create(session=self.session, role=role, content=content)

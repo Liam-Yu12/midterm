@@ -17,6 +17,21 @@
   var button = form.querySelector('button[type="submit"]');
   var submitting = false;
 
+  // Enter sends; Shift+Enter inserts a newline. Sending goes through the same form
+  // submit (and the handler below), so the "Thinking…" state and double-submit
+  // protection apply. Blank messages are not sent. isComposing: don't hijack the
+  // Enter that confirms an IME composition.
+  textarea.addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    if (submitting || !textarea.value.trim()) return;
+    if (form.requestSubmit) {
+      form.requestSubmit(button);
+    } else {
+      button.click();
+    }
+  });
+
   form.addEventListener('submit', function (event) {
     if (submitting) {
       event.preventDefault();

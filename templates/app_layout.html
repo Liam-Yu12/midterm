@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block body %}
-<div class="app">
+<div class="app{% block app_class %}{% endblock %}">
   <aside class="sidebar">
     <div class="sidebar-header">
       <a href="{% url 'chat:home' %}" class="brand">LiteChat</a>
