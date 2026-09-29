@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+from decimal import Decimal
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -155,3 +156,7 @@ LOGOUT_REDIRECT_URL = '/login/'
 LITECHAT_PROXY_BASE_URL = 'https://proxy.litechat.ai'
 LITECHAT_PROXY_TIMEOUT = 120  # seconds; the proxy took up to ~36 s in the study
 LITECHAT_MAX_OUTPUT_TOKENS = 1024
+
+# Credit given to the [Personal] account of every user who signs up at /signup/.
+# Set to Decimal('0') so that new users need an admin top-up before chatting.
+LITECHAT_SIGNUP_CREDIT = Decimal('2.00')

@@ -1,8 +1,8 @@
-"""Metering: pricing token usage and charging it to a billing account (plan decision D4).
+"""Billing services: personal accounts and metering.
 
-Policy: the account must be active with credit > 0 *before* a proxy call; the actual
-cost is charged only after a successful reply, so the final reply may overdraw
-the account slightly. Failed calls are never charged.
+Metering policy (plan decision D4): the account must be active with credit > 0
+*before* a proxy call; the actual cost is charged only after a successful reply, so
+the final reply may overdraw the account slightly. Failed calls are never charged.
 """
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -31,6 +31,28 @@ class AccountInactive(BillingError):
 class InsufficientCredit(BillingError):
     def __init__(self, account):
         super().__init__(f'Insufficient credit in {account}. Ask an administrator to top up.')
+
+
+def ensure_personal_account(user, credit):
+    """Give `user` an active [Personal] billing account holding `credit`.
+
+    Creates the account (named after the user, in capitals) if the user has none,
+    otherwise reactivates it and resets its credit. Returns (account, created).
+    Used by sign-up and by the seed_demo command.
+    """
+    with transaction.atomic():
+        account = user.billing_accounts.filter(kind=BillingAccount.Kind.PERSONAL).first()
+        created = account is None
+        if created:
+            account = BillingAccount.objects.create(
+                name=(user.get_full_name() or user.get_username()).upper(),
+                kind=BillingAccount.Kind.PERSONAL,
+            )
+            account.members.add(user)
+        account.status = BillingAccount.Status.ACTIVE
+        account.credit = credit
+        account.save()
+    return account, created
 
 
 def calculate_cost(llm_model, input_tokens, output_tokens):

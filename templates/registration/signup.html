@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Create account · LiteChat{% endblock %}
+
+{% block body %}
+<main class="login-page">
+  <h1 class="login-title">Create your account</h1>
+  <form method="post" action="{% url 'signup' %}" class="card login-card" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <p class="form-error" role="alert">{{ form.non_field_errors|join:" " }}</p>
+    {% endif %}
+    {% for field in form %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<p class="form-error" role="alert">{{ field.errors|join:" " }}</p>{% endif %}
+      {% if field.name == "username" %}<p class="muted field-help">Letters, digits and @ . + - _ only (no spaces).</p>{% endif %}
+      {% if field.name == "password1" %}<p class="muted field-help">At least 8 characters, not too common, not entirely numeric.</p>{% endif %}
+    {% endfor %}
+    <button type="submit" class="btn btn-primary">CREATE ACCOUNT</button>
+  </form>
+  <p class="auth-switch">Have an account? <a href="{% url 'login' %}">Log in</a></p>
+</main>
+{% endblock %}
