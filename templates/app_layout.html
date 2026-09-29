@@ -11,7 +11,7 @@
       </form>
     </div>
 
-    {# /chat/new/ is added in Phase 5 and /profile/ in Phase 3. #}
+    {# /chat/new/ is added in Phase 5. #}
     <a href="/chat/new/" class="btn btn-primary sidebar-new">+ New conversation</a>
 
     <nav class="sidebar-section">
@@ -23,7 +23,7 @@
 
     <nav class="sidebar-section sidebar-footer">
       <h2 class="sidebar-heading">Account</h2>
-      <a href="/profile/">My Profile</a>
+      <a href="{% url 'billing:profile' %}">My Profile</a>
       <p class="muted">Signed in as {{ user.get_username }}</p>
     </nav>
   </aside>
