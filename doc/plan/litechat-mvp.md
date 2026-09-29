@@ -4,7 +4,7 @@
 - **Date:** 2026-09-29. **Deadline: today.**
 - **Goal:** a working Django app that demonstrates LiteChat's core: *metered, a la carte access to LLMs from various providers*. Users log in, choose a billing account and one of three provider models, chat through the course proxy, and pay per token from their credit.
 - **Not the goal:** a full clone. Section 14 lists what is deliberately excluded.
-- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phases 6–11 are complete (the live-proxy checks for 6–7 are pending, as with 4b.10). Phase 12 is next. Tick items as they are completed.
+- **Status:** Phases 0–4 and 5 complete. **4b is open:** its code and offline tests are committed, but the live smoke test (4b.10) is on hold until the proxy keys are reissued (they were exposed in a session transcript by a test bug; see 4b.9). Phases 6–11 are complete. **Phase 12: local verification passed.** The real-proxy check (12.3) and the merge (12.6) are **on hold** until fresh keys are issued (see 4b.10). Tick items as they are completed.
 
 ---
 
@@ -475,9 +475,10 @@ The verify step was done against the **local fake proxy** (the real keys must no
 ## Phase 12: Tests, verification and rendezvous
 *Depends on: 1–11.*
 
-- [ ] 12.1 `python manage.py test` passes, with **no network calls** (the adapters are mocked everywhere).
-- [ ] 12.2 `python manage.py check` passes, and `python manage.py makemigrations --check` reports no missing migrations.
-- [ ] 12.3 Manual end-to-end check against the real proxy, from a fresh DB (`migrate` + `seed_demo`):
+- [x] 12.1 `python manage.py test` passes, with **no network calls** (the adapters are mocked everywhere).
+- [x] 12.2 `python manage.py check` passes, and `python manage.py makemigrations --check` reports no missing migrations.
+- [ ] 12.3 **(REAL PROXY: ON HOLD, waiting for reissued keys)** Manual end-to-end check against the real proxy, from a fresh DB (`migrate` + `seed_demo`):
+  - *Substitute done:* every sub-step below was run against the **local fake proxy** from a clean clone (see Result). The real-proxy run is still required before 12.6.
   - [ ] Log in, and the empty state is shown.
   - [ ] New conversation: [Personal] account + **GPT-5.6 Luna**. Two turns; the second relies on the first.
   - [ ] New conversation with **Claude Haiku 4.5**, one turn.
@@ -486,14 +487,52 @@ The verify step was done against the **local fake proxy** (the real keys must no
   - [ ] Rename one session, delete another. The sidebar is correct and the charges are kept.
   - [ ] Set credit to 0 in the admin. The send is blocked with a clear message.
   - [ ] Log out, log back in, and the sessions and history are intact.
-- [ ] 12.4 Security check:
+- [x] 12.4 Security check:
   - A grep of the repo for each key value finds it only in `.env`.
   - `git ls-files` doesn't include `.env` or `db.sqlite3`.
   - No key is in any template or static file.
-- [ ] 12.5 Quick review of the diff for leftover debug code and unrelated changes.
+- [x] 12.5 Quick review of the diff for leftover debug code and unrelated changes.
 - [ ] 12.6 Tick this checklist, then merge `feat/litechat-mvp` into `main` (`git merge --no-ff`) **only if 12.1–12.4 pass**.
+  - **Not merged.** Holding for the user's go-ahead and the real-proxy check in 12.3.
 
 **Verify:** `main` has a working app, and a fresh clone + setup steps + `runserver` gives a working demo.
+
+**Result (2026-09-29, QA review; no live proxy calls, the exposed keys were never used):**
+
+| # | Check | Result |
+|---|---|---|
+| 12.1 | Full suite with sockets blocked | **154/154 pass, 0 network connection attempts** (litechat 7, billing 31, llm 35, chat 81) |
+| 12.2 | `check` / `makemigrations --check` / `showmigrations` | no issues / no changes / all 5 app migrations applied |
+| — | `check --deploy` (informational) | 4 HTTPS-only warnings (HSTS, SSL redirect, secure cookies). No deployment is planned (study A1). |
+| Clean clone | `git clone` of the branch → new `.venv` → `pip install -r requirements.txt` → `.env` from `.env.example` with **placeholder** keys → `migrate` on a fresh DB | OK. 3 models seeded, `check` clean, **154/154** tests pass, `git status` clean |
+| 12.3 (substitute) | Scripted browser-style walkthrough on the clean clone against the **local fake proxy** (`qa_settings`: local base URL, 3 s timeout) | **44/44 checks pass** (details below) |
+| Debug page | Real 500 from inside `complete()` with `DEBUG=True` | Debug page rendered with the `llm/providers.py` frame. **No placeholder key and no `Bearer` header in the page.** 90 masked values. |
+| 12.4 | Secret scan (3 proxy keys + Django secret key; values never printed) | none in 81 tracked files, untracked files, templates/static, or **26 commits (all refs)**. The only file holding them is `.env` (ignored, untracked). `db.sqlite3` and `.venv` are untracked. The generated `django-insecure` key was never committed. `.env.example` has empty values. |
+| 12.5 | Diff review `main..feat/litechat-mvp` (75 files) | no `print`/`pdb`/`breakpoint`/`console.log`/TODO. No files outside the planned layout. CLAUDE.md and the study are unchanged. `DEBUG` defaults to off. |
+
+The 44 walkthrough checks:
+- **Auth:** anonymous `/chat/`, `/chat/new/`, `/profile/` → login. Bad password → error. Login → `/chat/` empty state. Logout by GET → 405. Logout by POST ends the session.
+- **Billing:**
+  - `[Personal] QA`, Active, `$2.00`.
+  - 5 replies → 5 charges. Balance 2.00 → 1.999439 (exactly −0.000561). Each charge matches its reply's cost and tokens.
+  - The admin set credit to 0 → send blocked with "Insufficient credit…", draft kept, **fake proxy not called**.
+  - Charges are listed in the read-only admin.
+- **Model selection:** the account dropdown with help text. Providers OpenAI/Anthropic/Google. 3 models, 3 × "Value tier".
+- **Chat:**
+  - Luna, two turns: "What is my name?" → "Your name is Hans." (the stateless fake proxy can only know this from the history).
+  - Haiku and Gemini, one turn each.
+  - Continuing the older Luna session sent 5 messages of history.
+- **Sessions:**
+  - The sidebar lists 3, most recent first, with the current one highlighted.
+  - Rename shows in the header and sidebar. A blank rename is rejected.
+  - Delete confirms, removes the session and its sidebar item, and keeps the charges and balance.
+  - Sessions and history are intact after logout/login.
+  - Another user gets 404 on view and delete.
+- **Errors:** 400, 401, 403, 429, 500, 502, 503, 504, timeout, and connection failure (fake proxy stopped). Each showed the planned friendly message, kept the draft, saved and charged nothing, and showed no upstream detail or key. The server log held only `kind=… status=…` lines. The only traceback in the log was Django's standard entry for the **intentional** 403 on the read-only admin add page.
+
+**Still pending (needs reissued keys):** 4b.10, and the 12.3 run against the real proxy (the three providers' real response shapes, real usage numbers, real latency). Then 12.6 (merge).
+
+**QA finding (not fixed; no new features in this phase):** `send_message` checks that the billing account is active and has credit, but does **not** re-check that the user is still a member. If an admin removes a user from a *shared* account, that user's existing sessions can still charge it. The MVP demo is unaffected (personal accounts only). It's a small follow-up fix if wanted.
 
 ---
 
