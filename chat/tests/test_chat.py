@@ -273,3 +273,48 @@ class BuildTurnsTests(MockedProviderTestCase):
 
     def test_build_turns_is_empty_for_new_session(self):
         self.assertEqual(services.build_turns(self.session), [])
+
+
+class BillingMembershipTests(MockedProviderTestCase):
+    """QA fix: membership of the session's billing account is re-checked on every send."""
+
+    def test_removed_member_gets_403_and_nothing_is_sent_saved_or_charged(self):
+        complete = self.mock_complete()
+        self.account.members.remove(self.hans)
+
+        response = self.client.post(self.send_url, {'content': 'charge the old account'})
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, 'You are no longer a member of [Personal] HANS LIAM YU', status_code=403)
+        self.assertContains(response, 'charge the old account</textarea>', status_code=403)
+        complete.assert_not_called()
+        self.assertFalse(self.session.messages.exists())
+        self.assertFalse(UsageCharge.objects.exists())
+        self.assertEqual(BillingAccount.objects.get(pk=self.account.pk).credit, Decimal('2.00'))
+
+    def test_removed_member_can_still_read_their_history(self):
+        Message.objects.create(session=self.session, role='user', content='old question')
+        self.account.members.remove(self.hans)
+        self.assertContains(self.client.get(self.url), 'old question')
+
+    def test_shared_account_member_can_send(self):
+        shared = BillingAccount.objects.create(name='CLASS ITENT 45', kind=BillingAccount.Kind.SHARED,
+                                               credit=Decimal('5.00'))
+        shared.members.add(self.hans, self.other)
+        session = ChatSession.objects.create(user=self.hans, billing_account=shared, llm_model=self.luna)
+        self.mock_complete()
+        response = self.client.post(f'/chat/{session.pk}/send/', {'content': 'hi'})
+        self.assertRedirects(response, f'/chat/{session.pk}/')
+        self.assertEqual(UsageCharge.objects.get().billing_account, shared)
+
+    def test_removed_from_shared_account_is_blocked(self):
+        shared = BillingAccount.objects.create(name='CLASS ITENT 45', kind=BillingAccount.Kind.SHARED,
+                                               credit=Decimal('5.00'))
+        shared.members.add(self.hans, self.other)
+        session = ChatSession.objects.create(user=self.hans, billing_account=shared, llm_model=self.luna)
+        shared.members.remove(self.hans)
+        complete = self.mock_complete()
+        response = self.client.post(f'/chat/{session.pk}/send/', {'content': 'hi'})
+        self.assertEqual(response.status_code, 403)
+        complete.assert_not_called()
+        self.assertEqual(BillingAccount.objects.get(pk=shared.pk).credit, Decimal('5.00'))

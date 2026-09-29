@@ -17,14 +17,14 @@ def _get_own_session(request, pk):
     )
 
 
-def _render_session(request, session, *, error=None, draft=''):
+def _render_session(request, session, *, error=None, draft='', status=200):
     return render(request, 'chat/session_detail.html', {
         'session': session,
         'chat_messages': session.messages.all(),
         'error': error,
         'draft': draft,
         'max_length': services.MAX_MESSAGE_LENGTH,
-    })
+    }, status=status)
 
 
 @login_required
@@ -59,6 +59,14 @@ def session_detail(request, pk):
 def send_message(request, pk):
     session = _get_own_session(request, pk)
     text = request.POST.get('content', '')
+    # Membership is checked when a session is created, but an admin may remove the
+    # user from the (e.g. shared) account later: re-check before charging it.
+    if not session.billing_account.members.filter(pk=request.user.pk).exists():
+        return _render_session(
+            request, session, status=403, draft=text,
+            error=(f'You are no longer a member of {session.billing_account}, so this conversation '
+                   'cannot be charged to it. Start a new conversation with another billing account.'),
+        )
     try:
         services.send_message(session, text)
     except services.SendError as exc:
